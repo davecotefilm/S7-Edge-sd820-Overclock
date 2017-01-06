@@ -1,2 +1,1 @@
-I'm trying to overclock the sm-g9350 s7 edge with msm8996pro dts files, as per the oneplus3t.
-Please help.
+NOTE: lazy-prebuilt folder had too many large files, but you can get it here: https://github.com/davecotefilm/android_kernel_samsung_msm8996
