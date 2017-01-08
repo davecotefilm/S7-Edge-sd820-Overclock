@@ -244,25 +244,9 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 		if (cpu_clk[cpu] == cpu_clk[policy->cpu])
 			cpumask_set_cpu(cpu, policy->cpus);
 
-	if (cpufreq_frequency_table_cpuinfo(policy, table)){
-  		pr_err("cpufreq: failed to get policy min/max\n");
- 		
- 	/*
- 	 * Define default CPU frequency rules
- 	*/		
- 	//ARM LITTLE
- 	if (policy->cpu <= 1)
- 	{
- 		policy->cpuinfo.min_freq = 307200;
- 		policy->cpuinfo.max_freq = 1862400;
- 	}
- 	//ARM big
- 	else
- 	{
- 		policy->cpuinfo.min_freq = 307200;
- 		policy->cpuinfo.max_freq = 2496000;
- 	}
-        }
+	if (cpufreq_frequency_table_cpuinfo(policy, table))
+		pr_err("cpufreq: failed to get policy min/max\n");
+
 	cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
 
 	if (cpufreq_frequency_table_target(policy, table, cur_freq,
