@@ -510,7 +510,7 @@ static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe)
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
 
-	if ((c->frequency < 950000) || (c->frequency > 2150000))
+	if ((c->frequency < 950000) || (c->frequency > 2342400))
 		return -EINVAL;
 
 	div = (c->frequency + (125 - 1)) / 125;	/* round correctly */
@@ -528,7 +528,7 @@ static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe)
 		buf[3] |= 0x40;
 	else if (c->frequency < 2050000)
 		buf[3] |= 0x80;
-	else if (c->frequency < 2150000)
+	else if (c->frequency < 2342400)
 		buf[3] |= 0xC0;
 
 	if (fe->ops.i2c_gate_ctrl)

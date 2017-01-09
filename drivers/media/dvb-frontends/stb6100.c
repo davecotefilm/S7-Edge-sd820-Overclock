@@ -73,10 +73,9 @@ static const struct stb6100_lkup lkup[] = {
 	{ 1370000, 1470000, 0x04 },
 	{ 1470000, 1530000, 0x05 },
 	{ 1530000, 1650000, 0x06 },
-	{ 1650000, 1800000, 0x08 },
-	{ 1800000, 1950000, 0x0a },
-	{ 1950000, 2150000, 0x0c },
-	{ 2150000, 9999999, 0x0c },
+	{ 1650000, 1950000, 0x08 },
+	{ 1950000, 2342400, 0x0a },
+	{ 2342400, 9999999, 0x0c },
 	{       0,       0, 0x00 }
 };
 
@@ -565,7 +564,7 @@ static struct dvb_tuner_ops stb6100_ops = {
 	.info = {
 		.name			= "STB6100 Silicon Tuner",
 		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
+		.frequency_max		= 2342400,
 		.frequency_step		= 0,
 	},
 

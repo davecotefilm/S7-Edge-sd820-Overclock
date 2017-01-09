@@ -417,7 +417,7 @@ static const struct dvb_tuner_ops m88ts2022_tuner_ops = {
 	.info = {
 		.name          = "Montage M88TS2022",
 		.frequency_min = 950000,
-		.frequency_max = 2150000,
+		.frequency_max = 2342400,
 	},
 
 	.init = m88ts2022_init,

@@ -540,7 +540,7 @@ static const struct dvb_tuner_ops cx24113_tuner_ops = {
 	.info = {
 		.name           = "Conexant CX24113",
 		.frequency_min  = 950000,
-		.frequency_max  = 2150000,
+		.frequency_max  = 2342400,
 		.frequency_step = 125,
 	},
 

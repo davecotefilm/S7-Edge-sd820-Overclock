@@ -188,7 +188,7 @@ static struct cx24123_bandselect_val {
 	/* band 9 */
 	{
 		.freq_low	= 2036000,
-		.freq_high	= 2150000,
+		.freq_high	= 2342400,
 		.VCOdivider	= 2,
 		.progdata	= (0 << 19) | (1 << 9) | 0x40,
 	},
@@ -1116,7 +1116,7 @@ static struct dvb_frontend_ops cx24123_ops = {
 	.info = {
 		.name = "Conexant CX24123/CX24109",
 		.frequency_min = 950000,
-		.frequency_max = 2150000,
+		.frequency_max = 2342400,
 		.frequency_stepsize = 1011, /* kHz for QPSK frontends */
 		.frequency_tolerance = 5000,
 		.symbol_rate_min = 1000000,

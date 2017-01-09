@@ -349,7 +349,7 @@ static struct dvb_tuner_ops stv6110x_ops = {
 	.info = {
 		.name		= "STV6110(A) Silicon Tuner",
 		.frequency_min	=  950000,
-		.frequency_max	= 2150000,
+		.frequency_max	= 2342400,
 		.frequency_step	= 0,
 	},
 	.release		= stv6110x_release

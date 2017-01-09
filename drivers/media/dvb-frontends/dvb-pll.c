@@ -332,14 +332,14 @@ static struct dvb_pll_desc dvb_pll_samsung_tbmv = {
 static struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 	.name  = "Philips SD1878",
 	.min   =  950000,
-	.max   = 2150000,
+	.max   = 2342400,
 	.iffreq= 249, /* zero-IF, offset 249 is to round up */
 	.count = 4,
 	.entries = {
 		{ 1250000, 500, 0xc4, 0x00},
 		{ 1450000, 500, 0xc4, 0x40},
 		{ 2050000, 500, 0xc4, 0x80},
-		{ 2150000, 500, 0xc4, 0xc0},
+		{ 2342400, 500, 0xc4, 0xc0},
 	},
 };
 
@@ -479,7 +479,7 @@ static struct dvb_pll_desc dvb_pll_samsung_tdtc9251dh0 = {
 static struct dvb_pll_desc dvb_pll_samsung_tbdu18132 = {
 	.name = "Samsung TBDU18132",
 	.min	=  950000,
-	.max	= 2150000, /* guesses */
+	.max	= 2342400, /* guesses */
 	.iffreq = 0,
 	.count = 2,
 	.entries = {
@@ -500,7 +500,7 @@ static struct dvb_pll_desc dvb_pll_samsung_tbdu18132 = {
 static struct dvb_pll_desc dvb_pll_samsung_tbmu24112 = {
 	.name = "Samsung TBMU24112",
 	.min	=  950000,
-	.max	= 2150000, /* guesses */
+	.max	= 2342400, /* guesses */
 	.iffreq = 0,
 	.count = 2,
 	.entries = {

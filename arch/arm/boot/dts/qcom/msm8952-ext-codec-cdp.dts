@@ -149,7 +149,7 @@
 		qcom,cdc-micbias2-ext-cap;
 
 		cdc-vdd-buck-supply = <&eldo2_8952>;
-		qcom,cdc-vdd-buck-voltage = <1800000 2150000>;
+		qcom,cdc-vdd-buck-voltage = <1800000 2342400>;
 		qcom,cdc-vdd-buck-current = <650000>;
 
 		cdc-vdd-tx-h-supply = <&pm8950_l5>;

@@ -202,7 +202,7 @@ static int cx24108_tuner_set_params(struct dvb_frontend *fe)
 	int i, a, n, pump;
 	u32 band, pll;
 	u32 osci[]={950000,1019000,1075000,1178000,1296000,1432000,
-		1576000,1718000,1856000,2036000,2150000};
+		1576000,1718000,1856000,2036000,2150000,2246400,2342400};
 	u32 bandsel[]={0,0x00020000,0x00040000,0x00100800,0x00101000,
 		0x00102000,0x00104000,0x00108000,0x00110000,
 		0x00120000,0x00140000};
@@ -214,8 +214,8 @@ static int cx24108_tuner_set_params(struct dvb_frontend *fe)
 
 	if (freq<950000)
 		freq = 950000; /* kHz */
-	else if (freq>2150000)
-		freq = 2150000; /* satellite IF is 950..2150MHz */
+	else if (freq>2342400)
+		freq = 2342400; /* satellite IF is 950..2150MHz */
 
 	/* decide which VCO to use for the input frequency */
 	for(i = 1; (i < ARRAY_SIZE(osci) - 1) && (osci[i] < freq); i++);

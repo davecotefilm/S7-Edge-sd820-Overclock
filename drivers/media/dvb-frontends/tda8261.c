@@ -123,7 +123,7 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 		 * (to account for half channel spacing on either side)
 		 */
 		frequency = tstate->frequency;
-		if ((frequency < 950000) || (frequency > 2150000)) {
+		if ((frequency < 950000) || (frequency > 2342400)) {
 			pr_warn("%s: Frequency beyond limits, frequency=%d\n", __func__, frequency);
 			return -EINVAL;
 		}
@@ -139,7 +139,7 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 			buf[3] = 0x00;
 		else if (frequency < 2000000)
 			buf[3] = 0x40;
-		else if (frequency < 2150000)
+		else if (frequency < 2342400)
 			buf[3] = 0x80;
 
 		/* Set params */
@@ -184,7 +184,7 @@ static struct dvb_tuner_ops tda8261_ops = {
 		.name		= "TDA8261",
 //		.tuner_name	= NULL,
 		.frequency_min	=  950000,
-		.frequency_max	= 2150000,
+		.frequency_max	= 2342400,
 		.frequency_step = 0
 	},
 

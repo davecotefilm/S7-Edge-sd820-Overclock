@@ -161,7 +161,7 @@ static struct dvb_tuner_ops tua6100_tuner_ops = {
 	.info = {
 		.name = "Infineon TUA6100",
 		.frequency_min = 950000,
-		.frequency_max = 2150000,
+		.frequency_max = 2342400,
 		.frequency_step = 1000,
 	},
 	.release = tua6100_release,

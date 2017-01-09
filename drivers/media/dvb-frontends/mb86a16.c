@@ -1127,7 +1127,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				fOSC_start = state->frequency;
 			} else {
 				fOSC_start = state->frequency + 1;
-				if (fOSC_start > 2150)
+				if (fOSC_start > 2340)
 					fOSC_start = state->frequency - 1;
 			}
 		}
@@ -1139,11 +1139,11 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			vmax++;
 
 			/* Upper bound */
-			if (ftemp > 2150000) {
+			if (ftemp > 2342400) {
 				loop = 0;
 				vmax--;
 			} else {
-				if ((ftemp == 2150000) ||
+				if ((ftemp == 2342400) ||
 				    (ftemp - state->frequency * 1000 >= fcp + state->srate / 4))
 					loop = 0;
 			}
@@ -1820,7 +1820,7 @@ static struct dvb_frontend_ops mb86a16_ops = {
 	.info = {
 		.name			= "Fujitsu MB86A16 DVB-S",
 		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
+		.frequency_max		= 2342400,
 		.frequency_stepsize	= 3000,
 		.frequency_tolerance	= 0,
 		.symbol_rate_min	= 1000000,

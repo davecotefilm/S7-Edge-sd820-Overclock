@@ -175,7 +175,7 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 		ops->delsys[0]		= SYS_DVBS;
 
 		fi->frequency_min	= 950000;
-		fi->frequency_max	= 2150000;
+		fi->frequency_max	= 2342400;
 		fi->frequency_stepsize	= 125;
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
@@ -195,7 +195,7 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 		ops->delsys[1]		= SYS_DVBS2;
 
 		fi->frequency_min	= 950000;
-		fi->frequency_max	= 2150000;
+		fi->frequency_max	= 2342400;
 		fi->frequency_stepsize	= 125;
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
