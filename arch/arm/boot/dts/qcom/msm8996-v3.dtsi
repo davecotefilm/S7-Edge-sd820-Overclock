@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -48,7 +48,7 @@
 		<  401800000  5  5 >,
 		<  510000000  6  5 >,
 		<  560000000  7  7 >,
-		<  650000000  8  7 >;
+		<  624000000  8  7 >;
 	qcom,gfxfreq-mx-speedbin0 =
 		<	   0  0 >,
 		<  133000000  4 >,
@@ -57,25 +57,22 @@
 		<  401800000  5 >,
 		<  510000000  5 >,
 		<  560000000  7 >,
-		<  650000000  7 >;
+		<  624000000  7 >;
+
 	qcom,gfxfreq-speedbin1 =
 		<	   0  0  0 >,
 		<  133000000  2  4 >,
 		<  214000000  3  4 >,
 		<  315000000  4  4 >,
 		<  401800000  5  5 >,
-		<  510000000  6  5 >,
-		<  560000000  7  7 >,
-		<  650000000  8  7 >;
+		<  510000000  6  5 >;
 	qcom,gfxfreq-mx-speedbin1 =
 		<	   0  0 >,
 		<  133000000  4 >,
 		<  214000000  4 >,
 		<  315000000  4 >,
 		<  401800000  5 >,
-		<  510000000  5 >,
-		<  560000000  7 >,
-		<  650000000  7 >;
+		<  510000000  5 >;
 };
 
 &gdsc_gpu_gx {
@@ -101,11 +98,12 @@
 	/* Updated chip ID */
 	qcom,chipid = <0x05030002>;
 
-	qcom,initial-pwrlevel = <6>;
 	qcom,bus-width = <32>;
+	qcom,gpu-speed-bin = <0x4130 0xe0000000 29>;
 
 	/* Quirks */
 	qcom,gpu-quirk-two-pass-use-wfi;
+	qcom,gpu-quirk-critical-packets;
 
 	qcom,gpu-pwrlevel-bins {
 		#address-cells = <1>;
@@ -119,9 +117,11 @@
 
 			qcom,speed-bin = <0>;
 
+			qcom,initial-pwrlevel = <5>;
+
 			qcom,gpu-pwrlevel@0 {
 				reg = <0>;
-				qcom,gpu-freq = <650000000>;
+				qcom,gpu-freq = <624000000>;
 				qcom,bus-freq = <12>;
 				qcom,bus-min = <11>;
 				qcom,bus-max = <12>;
@@ -190,64 +190,50 @@
 
 			qcom,speed-bin = <1>;
 
+			qcom,initial-pwrlevel = <3>;
+
 			qcom,gpu-pwrlevel@0 {
 				reg = <0>;
-				qcom,gpu-freq = <650000000>;
-				qcom,bus-freq = <12>;
-				qcom,bus-min = <11>;
-				qcom,bus-max = <12>;
+				qcom,gpu-freq = <510000000>;
+				qcom,bus-freq = <9>;
+				qcom,bus-min = <8>;
+				qcom,bus-max = <10>;
 			};
 
 			qcom,gpu-pwrlevel@1 {
 				reg = <1>;
-				qcom,gpu-freq = <560000000>;
-				qcom,bus-freq = <11>;
-				qcom,bus-min = <9>;
-				qcom,bus-max = <12>;
-			};
-
-			qcom,gpu-pwrlevel@2 {
-				reg = <2>;
-				qcom,gpu-freq = <510000000>;
-				qcom,bus-freq = <9>;
-				qcom,bus-min = <8>;
-				qcom,bus-max = <11>;
-			};
-
-			qcom,gpu-pwrlevel@3 {
-				reg = <3>;
 				qcom,gpu-freq = <401800000>;
 				qcom,bus-freq = <8>;
 				qcom,bus-min = <7>;
 				qcom,bus-max = <9>;
 			};
 
-			qcom,gpu-pwrlevel@4 {
-				reg = <4>;
+			qcom,gpu-pwrlevel@2 {
+				reg = <2>;
 				qcom,gpu-freq = <315000000>;
 				qcom,bus-freq = <6>;
 				qcom,bus-min = <5>;
 				qcom,bus-max = <7>;
 			};
 
-			qcom,gpu-pwrlevel@5 {
-				reg = <5>;
+			qcom,gpu-pwrlevel@3 {
+				reg = <3>;
 				qcom,gpu-freq = <214000000>;
 				qcom,bus-freq = <4>;
 				qcom,bus-min = <3>;
 				qcom,bus-max = <5>;
 			};
 
-			qcom,gpu-pwrlevel@6 {
-				reg = <6>;
+			qcom,gpu-pwrlevel@4 {
+				reg = <4>;
 				qcom,gpu-freq = <133000000>;
 				qcom,bus-freq = <3>;
 				qcom,bus-min = <2>;
 				qcom,bus-max = <4>;
 			};
 
-			qcom,gpu-pwrlevel@7 {
-				reg = <7>;
+			qcom,gpu-pwrlevel@5 {
+				reg = <5>;
 				qcom,gpu-freq = <27000000>;
 				qcom,bus-freq = <0>;
 				qcom,bus-min = <0>;
@@ -413,11 +399,7 @@
 			< 1324800000 13 >,
 			< 1401600000 14 >,
 			< 1478400000 15 >,
-			< 1593600000 16 >,
-			< 1670400000 17 >,
-			< 1708800000 18 >,
-			< 1785600000 19 >,
-			< 1862400000 20 >;
+			< 1593600000 16 >;
 		qcom,pwrcl-speedbin1-v0 =
 			<          0  0 >,
 			<  307200000  1 >,
@@ -459,12 +441,7 @@
 			< 1920000000 22 >,
 			< 1996800000 23 >,
 			< 2073600000 24 >,
-			< 2150400000 25 >,
-			< 2227200000 26 >,
-			< 2304000000 27 >,
-			< 2342400000 28 >,
-			< 2419200000 29 >,
-			< 2496000000 30 >;
+			< 2150400000 25 >;
 		qcom,perfcl-speedbin1-v0 =
 			<          0  0 >,
 			<  307200000  1 >,
@@ -545,11 +522,7 @@
 		< 1324800 >,
 		< 1401600 >,
 		< 1478400 >,
-		< 1593600 >,
-		< 1670400 >,
-		< 1708800 >,
-		< 1785600 >,
-		< 1862400 >;
+		< 1593600 >;
 	qcom,cpufreq-table-2 =
 		<  307200 >,
 		<  403200 >,
@@ -575,12 +548,7 @@
 		< 1920000 >,
 		< 1996800 >,
 		< 2073600 >,
-		< 2150400 >,
-		< 2227200 >,
-		< 2304000 >,
-		< 2342400 >,
-		< 2419200 >,
-		< 2496000 >;
+		< 2150400 >;
 };
 
 &m4m_cache {
@@ -624,11 +592,7 @@
 			< 1324800  1056000 >,
 			< 1401600  1132800 >,
 			< 1478400  1190400 >,
-			< 1593600  1382400 >,
-			< 1670400  1459200 >,
-			< 1708800  1536000 >,
-			< 1785600  1593600 >,
-			< 1862400  1593600 >;
+			< 1593600  1382400 >;
 		cpu-to-dev-map-2 =
 			<  480000  307200 >,
 			<  556800  307200 >,
@@ -652,21 +616,15 @@
 			< 1920000 1459200 >,
 			< 1996800 1593600 >,
 			< 2073600 1593600 >,
-			< 2150400 1593600 >,
-			< 2227200 1593600 >,
-		 	< 2304000 1593600 >,
-			< 2342400 1593600 >,
-			< 2419200 1593600 >,
-			< 2496000 1593600 >;
+			< 2150400 1593600 >;
 	};
 
 	mincpubw-cpufreq {
 		cpu-to-dev-map-0 =
-			< 1862400 1525 >;
+			< 1593600 1525 >;
 		cpu-to-dev-map-2 =
 			< 2073600 1525 >,
-			< 2150400 5195 >,
-			< 2496000 5859 >;
+			< 2150400 5195 >;
 	};
 };
 
@@ -710,4 +668,3 @@
 &cpu_pmu {
 	compatible = "qcom,kryo-pmuv3";
 };
-
