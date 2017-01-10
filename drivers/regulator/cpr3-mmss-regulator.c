@@ -54,6 +54,7 @@
 struct cpr3_msm8996_mmss_fuses {
 	u64	init_voltage[MSM8996_MMSS_FUSE_CORNERS];
 	u64	offset_voltage[MSM8996_MMSS_FUSE_CORNERS];
+	u64	speed_bin;
 	u64	cpr_fusing_rev;
 	u64	limitation;
 	u64	aging_init_quot_diff;
@@ -132,6 +133,13 @@ msm8996_mmss_offset_voltage_param[MSM8996_MMSS_FUSE_CORNERS][2] = {
 	{{64, 58, 61}, {} },
 };
 
+static const struct cpr3_fuse_param msm8996pro_mmss_speed_bin_param[] = {
+	{39, 60, 61},
+	{},
+};
+
+#define MSM8996PRO_SOC_ID	
+
 /*
  * Some initial msm8996 parts cannot be used in a meaningful way by software.
  * Other parts can only be used when operating with CPR disabled (i.e. at the
@@ -152,6 +160,13 @@ static const int msm8996_mmss_fuse_ref_volt[MSM8996_MMSS_FUSE_CORNERS] = {
 	745000,
 	905000,
 	1015000,
+};
+
+static const int msm8996pro_mmss_fuse_ref_volt[MSM8996_MMSS_FUSE_CORNERS] = {
+	670000,
+	745000,
+	905000,
+	1065000,
 };
 
 #define MSM8996_MMSS_FUSE_STEP_VOLT		10000
@@ -949,7 +964,26 @@ static int cpr3_mmss_regulator_resume(struct platform_device *pdev)
 }
 
 static struct of_device_id cpr_regulator_match_table[] = {
-	{ .compatible = "qcom,cpr3-msm8996-mmss-regulator", },
+	{
+		.compatible = "qcom,cpr3-msm8996-v1-mmss-regulator",
+		.data = (void *)(uintptr_t)1,
+	},
+	{
+		.compatible = "qcom,cpr3-msm8996-v2-mmss-regulator",
+		.data = (void *)(uintptr_t)2,
+	},
+	{
+		.compatible = "qcom,cpr3-msm8996-v3-mmss-regulator",
+		.data = (void *)(uintptr_t)3,
+	},
+	{
+		.compatible = "qcom,cpr3-msm8996-mmss-regulator",
+		.data = (void *)(uintptr_t)3,
+	},
+	{
+		.compatible = "qcom,cpr3-msm8996pro-mmss-regulator",
+		.data = (void *)(uintptr_t)3,
+	},
 	{}
 };
 

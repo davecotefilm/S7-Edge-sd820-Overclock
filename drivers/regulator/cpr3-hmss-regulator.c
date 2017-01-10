@@ -71,6 +71,7 @@ struct cpr3_msm8996_hmss_fuses {
 	u64	init_voltage[MSM8996_HMSS_FUSE_CORNERS];
 	u64	target_quot[MSM8996_HMSS_FUSE_CORNERS];
 	u64	quot_offset[MSM8996_HMSS_FUSE_CORNERS];
+	u64	cbf_voltage_offset[MSM8996_HMSS_FUSE_CORNERS];
 	u64	speed_bin;
 	u64	cpr_fusing_rev;
 	u64	redundant_fusing;
@@ -324,6 +325,17 @@ msm8996_hmss_aging_init_quot_diff_param[] = {
 	{},
 };
 
+static const struct cpr3_fuse_param
+msm8996pro_hmss_voltage_offset_param[MSM8996_HMSS_FUSE_CORNERS][4] = {
+	{{68, 50, 52}, {41, 63, 63}, {} },
+	{{62, 30, 31}, {62, 63, 63}, {66, 45, 45}, {} },
+	{{61, 35, 36}, {61, 62, 63}, {} },
+	{{61, 26, 26}, {61, 32, 34}, {} },
+	{{61, 22, 25}, {} },
+};
+
+#define MSM8996PRO_SOC_ID			4
+
 /*
  * Some initial msm8996 parts cannot be used in a meaningful way by software.
  * Other parts can only be used when operating with CPR disabled (i.e. at the
@@ -362,7 +374,20 @@ static const int msm8996_v3_hmss_fuse_ref_volt[MSM8996_HMSS_FUSE_CORNERS] = {
 	745000, /* Place holder entry for LowSVS */
 	745000,
 	905000,
-	1260000,
+	1140000,
+};
+
+/*
+ * Open loop voltage fuse reference voltages in microvolts for MSM8996 v3 with
+ * speed_bin == 1 and cpr_fusing_rev >= 5.
+ */
+static const int msm8996_v3_speed_bin1_rev5_hmss_fuse_ref_volt[
+						MSM8996_HMSS_FUSE_CORNERS] = {
+	605000,
+	745000, /* Place holder entry for LowSVS */
+	745000,
+	905000,
+	1040000,
 };
 
 /* Defines mapping from retention fuse values to voltages in microvolts */
@@ -376,6 +401,8 @@ static const int msm8996_vdd_mx_fuse_ret_volt[] = {
 
 #define MSM8996_HMSS_FUSE_STEP_VOLT		10000
 #define MSM8996_HMSS_VOLTAGE_FUSE_SIZE		6
+#define MSM8996PRO_HMSS_CBF_FUSE_STEP_VOLT	10000
+#define MSM8996PRO_HMSS_CBF_VOLTAGE_FUSE_SIZE	4
 #define MSM8996_HMSS_QUOT_OFFSET_SCALE		5
 #define MSM8996_HMSS_AGING_INIT_QUOT_DIFF_SCALE	2
 #define MSM8996_HMSS_AGING_INIT_QUOT_DIFF_SIZE	6
@@ -618,9 +645,12 @@ static int cpr3_msm8996_hmss_calculate_open_loop_voltages(
 	}
 
 	soc_revision = vreg->thread->ctrl->soc_revision;
-	ref_volt = soc_revision == 1 || soc_revision == 2
-			? msm8996_v1_v2_hmss_fuse_ref_volt
-			: msm8996_v3_hmss_fuse_ref_volt;
+	if (soc_revision == 1 || soc_revision == 2)
+		ref_volt = msm8996_v1_v2_hmss_fuse_ref_volt;
+	else if (fuse->speed_bin == 1 && fuse->cpr_fusing_rev >= 5)
+		ref_volt = msm8996_v3_speed_bin1_rev5_hmss_fuse_ref_volt;
+	else
+		ref_volt = msm8996_v3_hmss_fuse_ref_volt;
 
 	for (i = 0; i < vreg->fuse_corner_count; i++) {
 		fuse_volt[i] = cpr3_convert_open_loop_voltage_fuse(
@@ -1713,6 +1743,10 @@ static struct of_device_id cpr_regulator_match_table[] = {
 	{
 		.compatible = "qcom,cpr3-msm8996-hmss-regulator",
 		.data = (void *)3
+	},
+	{
+		.compatible = "qcom,cpr3-msm8996pro-hmss-regulator",
+		.data = (void *)3,
 	},
 	{}
 };
