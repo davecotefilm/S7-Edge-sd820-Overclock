@@ -3291,7 +3291,7 @@ static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
 		power = 23040;
 		break;
 	case FE_CAB_MOD_QAM64:
-		power = 21504;
+		power = 22656;
 		break;
 	case FE_CAB_MOD_QAM128:
 		power = 23616;

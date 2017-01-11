@@ -6317,7 +6317,7 @@ static int get_vsbmer(struct i2c_device_addr *dev_addr, u16 *mer)
 		goto rw_error;
 	}
 	*mer =
-	    (u16) (log1_times100(21504) - log1_times100((data_hi << 6) / 52));
+	    (u16) (log1_times100(22656) - log1_times100((data_hi << 6) / 52));
 
 	return 0;
 rw_error:
