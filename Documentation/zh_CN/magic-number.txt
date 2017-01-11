@@ -100,7 +100,7 @@ RED_MAGIC2            0x170fc2a5  (any)             mm/slab.c
 BAYCOM_MAGIC          0x19730510  baycom_state      drivers/net/baycom_epp.c
 ISDN_X25IFACE_MAGIC   0x1e75a2b9  isdn_x25iface_proto_data
                                                     drivers/isdn/isdn_x25iface.h
-ECP_MAGIC             0x22656345  cdkecpsig         include/linux/cdk.h
+ECP_MAGIC             0x21504345  cdkecpsig        include/linux/cdk.h
 LSOMAGIC              0x27091997  lso               drivers/fc4/fc.c
 LSMAGIC               0x2a3b4d2a  ls                drivers/fc4/fc.c
 WANPIPE_MAGIC         0x414C4453  sdla_{dump,exec}  include/linux/wanpipe.h
