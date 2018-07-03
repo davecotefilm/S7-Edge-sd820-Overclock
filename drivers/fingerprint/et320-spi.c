@@ -224,6 +224,7 @@ static ssize_t etspi_write(struct file *filp,
 }
 
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
+#ifdef CONFIG_SENSORS_FP_LOCKSCREEN_MODE
 static int etspi_send_wake_up_signal(struct etspi_data *etspi)
 {
 	int ret = 0;
@@ -242,6 +243,7 @@ static int etspi_send_wake_up_signal(struct etspi_data *etspi)
 
 	return ret;
 }
+#endif
 
 static int etspi_register_wake_up_signal(struct etspi_data *etspi,
 				       u8 *arg)
@@ -588,6 +590,9 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 #endif
+	case FP_POWER_CONTROL_ET510:
+	case FP_IOCTL_RESERVED_01:
+		break;
 	default:
 		retval = -EFAULT;
 		break;
@@ -873,7 +878,7 @@ static int etspi_parse_dt(struct device *dev,
 		}
 	}
 
-	if (of_property_read_u32(np, "etspi-min_cpufeq_limit",
+	if (of_property_read_u32(np, "etspi-min_cpufreq_limit",
 		&data->min_cpufreq_limit))
 		data->min_cpufreq_limit = 0;
 

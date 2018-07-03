@@ -4,6 +4,7 @@
 obj-y += ss_dsi_panel_common.o
 obj-y += ss_dsi_mdnie_lite_common.o
 obj-y += ss_dsi_smart_dimming_common.o
+obj-y += ss_regulator_common.o
 obj-$(CONFIG_SAMSUNG_DEBUG_DISPLAY) += dlog.o
 #
 # panel directory make file
@@ -11,6 +12,15 @@ obj-$(CONFIG_SAMSUNG_DEBUG_DISPLAY) += dlog.o
 
 # TO SUPPORT PBA BOOINT
 obj-y += PBA_BOOTING_HD/
+
+# Veyron_CHN panel
+obj-$(CONFIG_PANEL_S6E3FA5_AMS420MS01_FHD) += S6E3FA5_AMS420MS01/
+
+# GRACE DSC panel
+obj-$(CONFIG_PANEL_S6E3HA5_AMB567MK01_WQHD) += S6E3HA5_AMB567MK01/
+
+# HERO ACTIVE (POSEIDON) DSC panel
+obj-$(CONFIG_PANEL_S6E3HF4_AMB509ME01_WQHD) += S6E3HF4_AMB509ME01/
 
 # HERO2 DSC panel
 obj-$(CONFIG_PANEL_S6E3HF4_AMB526JS01_WQHD) += S6E3HF4_AMB526JS01/
@@ -117,8 +127,8 @@ obj-$(CONFIG_PANEL_S6D7AA0X62_BV050HDM_HD_5_0) += S6D7AA0X62_BV050HDM/
 # J7_CHN panel-S6D7AA0X62_BV050HDM
 obj-$(CONFIG_PANEL_S6D7AA0X62_BV050HDM_HD_5_5) += S6D7AA0X62_BV050HDM/
 
-
-
+# TAB S2 LTE-U panel
+obj-$(CONFIG_PANEL_ANA38401_AMS968HH01_QXGA) += ANA38401_AMS968HH01/
 
 #
 # To build ALL panel files(For build error checking)
@@ -276,6 +286,10 @@ endif
 
 ifeq ($(shell [ -d $(DISPLAY_DIR)/NT51017_B4P096WX5VP09 ] && echo y), y)
 obj-y += NT51017_B4P096WX5VP09/
+endif
+
+ifeq ($(shell [ -d $(DISPLAY_DIR)/ANA38401_AMS968HH01 ] && echo y), y)
+obj-y += ANA38401_AMS968HH01/
 endif
 
 endif

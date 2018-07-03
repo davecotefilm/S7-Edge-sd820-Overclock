@@ -693,9 +693,6 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 
 	sdkp->provisioning_mode = mode;
 
-	printk("[TEST] %s: %s: mode=%d. max_unmap_blocks=%d.\n", __func__,
-			sdkp->disk->disk_name, mode,
-			sdkp->max_unmap_blocks);
 	switch (mode) {
 
 	case SD_LBP_DISABLE:
@@ -894,12 +891,6 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 		put_unaligned_be32(sector, &cmd->cmnd[2]);
 		put_unaligned_be16(nr_sectors, &cmd->cmnd[7]);
 	}
-
-	printk("[TEST] %s: %s: provisioning_mode=%d. cmnd[0] = 0x%x. ws16%d, ws10%d.\n",
-			__func__, sdkp->disk->disk_name,
-			sdkp->provisioning_mode, cmd->cmnd[0],
-			sdkp->ws16, sdkp->ws10);
-	dump_stack();
 
 	cmd->transfersize = sdp->sector_size;
 	cmd->allowed = SD_MAX_RETRIES;
@@ -2650,12 +2641,10 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 	if (!!buffer) {
 		/* Block Limits VPD */
 		ret = scsi_get_vpd_page(sdkp->device, 0xb0, buffer, vpd_len);
-		printk("[TEST] %s: %s: got buffers... ret=%d.\n", __func__,
-				sdkp->disk->disk_name, ret);
 	}
 
 	if (!buffer || ret) {
-		printk("[TEST] %s: %s: buffer is %s, scsi_get_vpd_page(0xb0) is %d...\n",
+		printk("%s: %s: buffer is %s, scsi_get_vpd_page(0xb0) is %d...\n",
 				__func__, sdkp->disk->disk_name,
 				!buffer ? "Invalid" : "Valid", ret);
 		goto out;
@@ -2669,10 +2658,6 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 			 get_unaligned_be16(&buffer[6]) * sector_sz);
 	blk_queue_io_opt(sdkp->disk->queue,
 			 get_unaligned_be32(&buffer[12]) * sector_sz);
-
-	printk("[TEST] %s: %s: buffer[3]=0x%x, max_xfer_length=0x%x.\n",
-			__func__, sdkp->disk->disk_name,
-			buffer[3], max_xfer_length);
 
 	if (buffer[3] == 0x3c) {
 		unsigned int lba_count, desc_count;
@@ -2714,7 +2699,7 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 		}
 	} else {
 		spin_lock(&sd_index_lock);
-		printk("[TEST] %s: BlockLimitVPD :", sdkp->disk->disk_name);
+		printk("%s: BlockLimitVPD :", sdkp->disk->disk_name);
 		for (i = 0 ; i < vpd_len ; i++) {
 			if (!(i % 16))
 				printk("\n 0x%02x:", i);
@@ -2747,8 +2732,6 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 
 	rot = get_unaligned_be16(&buffer[4]);
 
-	printk("[TEST] %s: %s: got buffers... rot=0x%x.\n",
-			__func__, sdkp->disk->disk_name, rot);
 	if (rot == 1) {
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, sdkp->disk->queue);
 		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, sdkp->disk->queue);
@@ -2779,12 +2762,8 @@ static void sd_read_block_provisioning(struct scsi_disk *sdkp)
 	sdkp->lbpu	= (buffer[5] >> 7) & 1;	/* UNMAP */
 	sdkp->lbpws	= (buffer[5] >> 6) & 1;	/* WRITE SAME(16) with UNMAP */
 	sdkp->lbpws10	= (buffer[5] >> 5) & 1;	/* WRITE SAME(10) with UNMAP */
-	printk("[TEST] %s: %s: got buffers...\n", __func__, sdkp->disk->disk_name);
 
  out:
-	printk("[TEST] %s: %s: lbpvpd%d, lbpu%d, lbpws%d, lbpws10%d.\n", __func__,
-			sdkp->disk->disk_name, sdkp->lbpvpd,
-			sdkp->lbpu, sdkp->lbpws, sdkp->lbpws10);
 	kfree(buffer);
 }
 
@@ -2817,10 +2796,6 @@ static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
 
 	if (scsi_report_opcode(sdev, buffer, SD_BUF_SIZE, WRITE_SAME) == 1)
 		sdkp->ws10 = 1;
-
-	printk("[TEST] %s: %s: provisioning_mode=%d. sdkp->ws16=%d, ws10=%d.\n",
-			__func__, sdkp->disk->disk_name,
-			sdkp->provisioning_mode, sdkp->ws16, sdkp->ws10);
 }
 
 static int sd_try_extended_inquiry(struct scsi_device *sdp)
@@ -2886,9 +2861,6 @@ static int sd_revalidate_disk(struct gendisk *disk)
 			sd_read_block_provisioning(sdkp);
 			sd_read_block_limits(sdkp);
 			sd_read_block_characteristics(sdkp);
-			printk("[TEST] %s:%d. %s: sdkp->device->sector_size=%d, provisioning_mode=%d.\n",
-					__func__, __LINE__, sdkp->disk->disk_name,
-					sdkp->device->sector_size, sdkp->provisioning_mode);
 		}
 
 		sd_read_write_protect_flag(sdkp, buffer);
@@ -2908,9 +2880,9 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	max_xfer = sdkp->max_xfer_blocks;
 	max_xfer <<= ilog2(sdp->sector_size) - 9;
 
-	max_xfer = min_not_zero(queue_max_hw_sectors(sdkp->disk->queue),
-				max_xfer);
-	blk_queue_max_hw_sectors(sdkp->disk->queue, max_xfer);
+	sdkp->disk->queue->limits.max_sectors =
+		min_not_zero(queue_max_hw_sectors(sdkp->disk->queue), max_xfer);
+
 	set_capacity(disk, sdkp->capacity);
 	sd_config_write_same(sdkp);
 	kfree(buffer);
@@ -3154,7 +3126,16 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 	sd_revalidate_disk(gd);
 
-	scsi_autopm_put_device(sdp);
+	printk("%s: lbpvpd %d, lbpu %d, lbpws %d, lbpws10 %d.\n",
+			sdkp->disk->disk_name, sdkp->lbpvpd,
+			sdkp->lbpu, sdkp->lbpws, sdkp->lbpws10);
+	printk("%s: sector_size=%d, provisioning_mode=%d.\n",
+			sdkp->disk->disk_name,
+			sdkp->device->sector_size, sdkp->provisioning_mode);
+
+	if (!(sdp->host->by_ufs))
+		scsi_autopm_put_device(sdp);
+
 	put_device(&sdkp->dev);
 #ifdef CONFIG_USB_STORAGE_DETECT
 	if (sdp->host->by_usb) {
@@ -3244,6 +3225,14 @@ static int sd_probe(struct device *dev)
 			blk_queue_rq_timeout(sdp->request_queue,
 					     SD_UFS_TIMEOUT);
 	}
+        
+#ifdef CONFIG_LARGE_DIRTY_BUFFER
+	if (!sdp->host->by_ufs) {
+		sdp->request_queue->backing_dev_info.max_ratio = 10;
+		sdp->request_queue->backing_dev_info.min_ratio = 10;
+		sdp->request_queue->backing_dev_info.capabilities |= BDI_CAP_STRICTLIMIT;
+	}
+#endif
 
 	device_initialize(&sdkp->dev);
 	sdkp->dev.parent = dev;
@@ -3445,8 +3434,8 @@ static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
 	int ret = 0;
 
-	if (!sdkp)
-		return 0;	/* this can happen */
+	if (!sdkp)	/* E.g.: runtime suspend following sd_remove() */
+		return 0;
 
 	if (sdkp->WCE && sdkp->media_present) {
 		ret = sd_sync_cache(sdkp);

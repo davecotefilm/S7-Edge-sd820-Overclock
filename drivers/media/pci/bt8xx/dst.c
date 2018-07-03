@@ -347,7 +347,7 @@ static int dst_set_freq(struct dst_state *state, u32 freq)
 
 	if (state->dst_type == DST_TYPE_IS_SAT) {
 		freq = freq / 1000;
-		if (freq < 950 || freq > 2340)
+		if (freq < 950 || freq > 2150)
 			return -EINVAL;
 		state->tx_tuna[2] = (freq >> 8);
 		state->tx_tuna[3] = (u8) freq;
@@ -1792,7 +1792,7 @@ static struct dvb_frontend_ops dst_dvbs_ops = {
 	.info = {
 		.name = "DST DVB-S",
 		.frequency_min = 950000,
-		.frequency_max = 2342400,
+		.frequency_max = 2150000,
 		.frequency_stepsize = 1000,	/* kHz for QPSK frontends */
 		.frequency_tolerance = 29500,
 		.symbol_rate_min = 1000000,

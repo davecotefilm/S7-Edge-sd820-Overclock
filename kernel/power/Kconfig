@@ -37,6 +37,13 @@ config CPU_FREQ_LIMIT_USERSPACE
 	  /sys/power/cpufreq_max_limit
 	  /sys/power/cpufreq_table
 
+config FOTA_LIMIT
+	bool "Fota limit information node"
+	default n
+	help
+	  Add sysfs to notify limit information to recovery module
+	  /sys/power/fota_limit
+
 config HIBERNATE_CALLBACKS
 	bool
 
@@ -335,16 +342,3 @@ config SUSPEND_TIME
 	  Prints the time spent in suspend in the kernel log, and
 	  keeps statistics on the time spent in suspend in
 	  /sys/kernel/debug/suspend_time
-
-config SUSPEND_TIME_TIMEKEEPING
-	bool "get suspend time from timekeeping"
-	default y if SUSPEND_TIME
-	---help---
-	  Get the suspend time in suspend from timekeeping for the archs
-	  that don't support persistent clock.
-
-config PM_SYNC_BEFORE_SUSPEND
-	bool "Sync file systems before suspend"
-	depends on PM
-	default n
-

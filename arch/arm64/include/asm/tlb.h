@@ -53,7 +53,7 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	tlb_remove_entry(tlb, pte);
 }
 
-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
+#if CONFIG_PGTABLE_LEVELS > 2
 #ifndef CONFIG_TIMA_RKP
 static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 				  unsigned long addr)
@@ -65,8 +65,10 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
                                   unsigned long addr)
 {
-	if (is_rkp_ro_page((unsigned long)pmdp))
+	if (is_rkp_ro_page((unsigned long)pmdp)) {
+		__flush_tlb_pgtable(tlb->mm, addr);
 		rkp_ro_free((void*)pmdp);
+	}
 	else {
 		__flush_tlb_pgtable(tlb->mm, addr);
 		tlb_remove_entry(tlb, virt_to_page(pmdp));
@@ -75,7 +77,7 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 #endif
 #endif
 
-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
+#if CONFIG_PGTABLE_LEVELS > 3
 static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pudp,
 				  unsigned long addr)
 {

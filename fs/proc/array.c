@@ -159,16 +159,16 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 	int g;
 	struct fdtable *fdt = NULL;
 	const struct cred *cred;
-	pid_t ppid, tpid;
+	pid_t ppid = 0, tpid = 0;
+        struct task_struct *leader = NULL;
 
 	rcu_read_lock();
-	ppid = pid_alive(p) ?
-		task_tgid_nr_ns(rcu_dereference(p->real_parent), ns) : 0;
-	tpid = 0;
 	if (pid_alive(p)) {
 		struct task_struct *tracer = ptrace_parent(p);
 		if (tracer)
 			tpid = task_pid_nr_ns(tracer, ns);
+		ppid = task_tgid_nr_ns(rcu_dereference(p->real_parent), ns);
+                leader = p->group_leader;
 	}
 	cred = get_task_cred(p);
 	seq_printf(m,
@@ -186,7 +186,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 		"Ngid:\t%d\n"
 #endif
 		,get_task_state(p),
-		task_tgid_nr_ns(p, ns),
+		leader ? task_pid_nr_ns(leader, ns) : 0,
 #ifndef CONFIG_PROC_TASK_STATE_CHN_ORDER
 		task_numa_group_id(p),
 #endif
@@ -402,7 +402,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 	state = *get_task_state(task);
 	vsize = eip = esp = 0;
-	permitted = ptrace_may_access(task, PTRACE_MODE_READ | PTRACE_MODE_NOAUDIT);
+	permitted = ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS | PTRACE_MODE_NOAUDIT);
 	mm = get_task_mm(task);
 	if (mm) {
 		vsize = task_vsize(mm);
@@ -540,6 +540,9 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		seq_put_decimal_ll(m, ' ', task->exit_code);
 	else
 		seq_put_decimal_ll(m, ' ', 0);
+
+	seq_putc(m, ' ');
+	seq_cpumask(m, &task->cpus_allowed);
 
 	seq_putc(m, '\n');
 	if (mm)

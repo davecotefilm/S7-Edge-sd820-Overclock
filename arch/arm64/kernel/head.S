@@ -135,6 +135,8 @@ efi_head:
 #endif
 
 #ifdef CONFIG_EFI
+	.globl	stext_offset
+	.set	stext_offset, stext - efi_head
 	.align 3
 pe_header:
 	.ascii	"PE"
@@ -158,12 +160,12 @@ optional_header:
 	.long	0				// SizeOfInitializedData
 	.long	0				// SizeOfUninitializedData
 	.long	efi_stub_entry - efi_head	// AddressOfEntryPoint
-	.long	stext - efi_head		// BaseOfCode
+	.long	stext_offset			// BaseOfCode
 
 extra_header_fields:
 	.quad	0				// ImageBase
-	.long	0x20				// SectionAlignment
-	.long	0x8				// FileAlignment
+	.long	0x1000				// SectionAlignment
+	.long	PECOFF_FILE_ALIGNMENT		// FileAlignment
 	.short	0				// MajorOperatingSystemVersion
 	.short	0				// MinorOperatingSystemVersion
 	.short	0				// MajorImageVersion
@@ -175,7 +177,7 @@ extra_header_fields:
 	.long	_end - efi_head			// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
-	.long	stext - efi_head		// SizeOfHeaders
+	.long	stext_offset			// SizeOfHeaders
 	.long	0				// CheckSum
 	.short	0xa				// Subsystem (EFI application)
 	.short	0				// DllCharacteristics
@@ -220,26 +222,30 @@ section_table:
 	.byte	0
 	.byte	0        		// end of 0 padding of section name
 	.long	_end - stext		// VirtualSize
-	.long	stext - efi_head	// VirtualAddress
+	.long	stext_offset		// VirtualAddress
 	.long	_edata - stext		// SizeOfRawData
-	.long	stext - efi_head	// PointerToRawData
+	.long	stext_offset		// PointerToRawData
 
 	.long	0		// PointerToRelocations (0 for executables)
 	.long	0		// PointerToLineNumbers (0 for executables)
 	.short	0		// NumberOfRelocations  (0 for executables)
 	.short	0		// NumberOfLineNumbers  (0 for executables)
 	.long	0xe0500020	// Characteristics (section flags)
-	.align 5
+
+	/*
+	 * EFI will load stext onwards at the 4k section alignment
+	 * described in the PE/COFF header. To ensure that instruction
+	 * sequences using an adrp and a :lo12: immediate will function
+	 * correctly at this alignment, we must ensure that stext is
+	 * placed at a 4k boundary in the Image to begin with.
+	 */
+	.align 12
 #endif
 
 ENTRY(stext)
 #ifdef CONFIG_RKP_CFP_ROPP
-	/* Must intialize RRK to zero before any RET/BL/BLR instructions.  */
-	mov RRK, #0
-#endif
-#ifdef CONFIG_RKP_CFP_JOPP
-	/* We need RRS to be loaded before we take our first instrumented BLR branch.  */
-	load_function_entry_magic_number_before_reloc head_magic
+	/* Must intialize RRK to zero */
+	mov	RRK, #0
 #endif
 #ifdef CONFIG_RELOCATABLE_KERNEL
 	mov	x22, x1				// x1=PHYS_OFFSET
@@ -291,10 +297,6 @@ ENTRY(stext)
 	br	x12				// initialise processor
 ENDPROC(stext)
 
-#ifdef CONFIG_RKP_CFP_JOPP
-alloc_function_entry_magic_number head_magic
-#endif
-
 
 #ifdef CONFIG_RELOCATABLE_KERNEL
 
@@ -311,35 +313,17 @@ __relocate_kernel:
 	add	x10, x10, :lo12:__reloc_end 	//x10: end of relocation table
 
 0:	cmp	x9, x10
-	b.hs	2f
+	b.hs	1f
 	ldp	x11, x12, [x9], #24
 	cmp	x12, #R_AARCH64_RELATIVE
-	b.ne	1f
+	b.ne	0b
 	ldr	x12, [x9, #-8]
 	add	x12, x12, x23			// relocate origin x23 
 	add	x11, x11, x23
 	str	x12, [x11, x28]
 	b	0b
 
-1:	ubfx	x13, x12, #0, #32
-	cmp	x13, #R_AARCH64_ABS64
-	b.ne	0b
-	lsr	x13, x12, #32			// symbol index
-	ldr	x12, [x9, #-8]			// addend
-	add	x13, x13, x13, lsl #1		// x 3
-	add	x13, x8, x13, lsl #3		// x 8
-	ldrsh	w14, [x13, #6]			// Elf64_Sym::st_shndx
-	cbz	w14, 0b				// SHN_UNDEF:: Weak Symbol? Do NOT patch 
-	ldr	x15, [x13, #8]			// Elf64_Sym::st_value
-	cmp	w14, #-0xf			// SHN_ABS (0xfff1) ?
-	add	x14, x15, x23			// st_value + offset
-	csel	x15, x14, x15, ne
-	add	x15, x12, x15
-	add	x11, x11, x23
-	str	x15, [x11, x28]
-	b	0b
-	
-2:	ldr	x8, =vectors			// reload VBAR_EL1 with
+1:	ldr	x8, =vectors			// reload VBAR_EL1 with
 	msr	vbar_el1, x8			// relocated address
 	isb
 
@@ -558,7 +542,7 @@ __mmap_switched:
 
 #ifdef CONFIG_TIMA_RKP
 	ldr	x6, =rkp_map_bitmap
-	add	x7, x6, 0x20000
+	add	x7, x6, 0x30000
 3:	cmp	x6, x7
 	b.hs	4f
 	str	xzr, [x6], #8			// Clear BSS
@@ -578,6 +562,9 @@ __mmap_switched:
 	str	x21, [x5]			// Save FDT pointer
 	str	x24, [x6]			// Save PHYS_OFFSET
 	mov	x29, #0
+#ifdef CONFIG_KASAN
+	bl	kasan_early_init
+#endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
 
@@ -656,6 +643,11 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 #ifdef CONFIG_COMPAT
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
+
+	/* EL2 debug */
+	mrs	x0, pmcr_el0			// Disable debug access traps
+	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
+	msr	mdcr_el2, x0			// all PMU counters from EL1
 
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
@@ -782,9 +774,6 @@ ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
 	 */
-#ifdef CONFIG_RKP_CFP_JOPP
-	load_function_entry_magic_number_no_mmu head_magic
-#endif
 	mrs	x22, midr_el1			// x22=cpuid
 	mov	x0, x22
 	bl	lookup_processor_type
@@ -823,9 +812,6 @@ ENTRY(__secondary_switched)
 	 */
 	get_thread_info tsk
 	load_key tsk
-#endif
-#ifdef CONFIG_RKP_CFP_JOPP
-	load_function_entry_magic_number_before_reloc head_magic
 #endif
 	mov	x29, #0
 	b	secondary_start_kernel

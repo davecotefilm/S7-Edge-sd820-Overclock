@@ -33,7 +33,7 @@
 struct adsp_data {
 	struct device *adsp;
 	struct device *sensor_device[ADSP_FACTORY_SENSOR_MAX];
-	struct device *mobeam_device;    
+	struct device *mobeam_device;
 	struct device_attribute **sensor_attr[ADSP_FACTORY_SENSOR_MAX];
 	struct sensor_value sensor_data[ADSP_FACTORY_SENSOR_MAX];
 	struct sensor_calib_value sensor_calib_data[ADSP_FACTORY_SENSOR_MAX];
@@ -56,14 +56,16 @@ struct adsp_data {
 	unsigned int data_ready;
 	unsigned int dump_ready_flag;
 	unsigned int dump_status;
-	void* pdata;
+	void *pdata;
+	bool sysfs_created[ADSP_FACTORY_SENSOR_MAX];
 };
 
-int adsp_factory_register(int type, struct device_attribute *attributes[]);
-int adsp_factory_unregister(int type);
+int adsp_get_sensor_data(int sensor_type);
+int adsp_factory_register(unsigned int type, struct device_attribute *attributes[]);
+int adsp_factory_unregister(unsigned int type);
 int adsp_mobeam_register(struct device_attribute *attributes[]);
 int adsp_mobeam_unregister(struct device_attribute *attributes[]);
 bool adsp_start_raw_data(int sensor_type);
 void adsp_stop_raw_data(int sensor_type);
-int adsp_unicast(void* param, int param_size, int type, u32 portid, int flags);
+int adsp_unicast(void *param, int param_size, int type, u32 portid, int flags);
 #endif

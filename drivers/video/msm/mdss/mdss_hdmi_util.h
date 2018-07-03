@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -258,9 +258,9 @@
 /* SEC_CTRL version that supports HDCP SEL */
 #define HDCP_SEL_MIN_SEC_VERSION         (0x50010000)
 
-#define TOP_AND_BOTTOM		0x10
-#define FRAME_PACKING		0x20
-#define SIDE_BY_SIDE_HALF	0x40
+#define TOP_AND_BOTTOM		(1 << HDMI_S3D_TOP_AND_BOTTOM)
+#define FRAME_PACKING		(1 << HDMI_S3D_FRAME_PACKING)
+#define SIDE_BY_SIDE_HALF	(1 << HDMI_S3D_SIDE_BY_SIDE)
 
 #define LPASS_LPAIF_RDDMA_CTL0           (0xFE152000)
 #define LPASS_LPAIF_RDDMA_PER_CNT0       (0x00000014)
@@ -368,11 +368,15 @@
 #define HDMI_DEFAULT_TIMEOUT_HSYNC 28571
 
 enum hdmi_tx_feature_type {
-	HDMI_TX_FEAT_EDID,
-	HDMI_TX_FEAT_HDCP,
-	HDMI_TX_FEAT_HDCP2P2,
-	HDMI_TX_FEAT_CEC,
-	HDMI_TX_FEAT_MAX,
+	HDMI_TX_FEAT_EDID     = BIT(0),
+	HDMI_TX_FEAT_HDCP     = BIT(1),
+	HDMI_TX_FEAT_HDCP2P2  = BIT(2),
+	HDMI_TX_FEAT_CEC_HW   = BIT(3),
+	HDMI_TX_FEAT_CEC_ABST = BIT(4),
+	HDMI_TX_FEAT_PANEL    = BIT(5),
+	HDMI_TX_FEAT_MAX      = HDMI_TX_FEAT_EDID | HDMI_TX_FEAT_HDCP |
+				HDMI_TX_FEAT_HDCP2P2 | HDMI_TX_FEAT_CEC_HW |
+				HDMI_TX_FEAT_CEC_ABST | HDMI_TX_FEAT_PANEL
 };
 
 enum hdmi_tx_scdc_access_type {
@@ -406,7 +410,7 @@ struct hdmi_tx_ddc_data {
 	u32 dev_addr;
 	u32 offset;
 	u32 request_len;
-	u32 no_align;
+	u32 retry_align;
 	u32 hard_timeout;
 	u32 timeout_left;
 	int retry;
@@ -432,13 +436,19 @@ struct hdmi_tx_hdcp2p2_ddc_data {
 	bool ddc_max_retries_fail;
 	bool ddc_done;
 	bool ddc_read_req;
+	bool ddc_timeout;
+	bool wait;
 	int irq_wait_count;
+	void (*link_cb)(void *data);
+	void *link_data;
 };
 
 struct hdmi_tx_ddc_ctrl {
+	atomic_t write_busy_wait_done;
+	atomic_t read_busy_wait_done;
+	atomic_t rxstatus_busy_wait_done;
 	struct dss_io_data *io;
 	struct completion ddc_sw_done;
-	struct completion rxstatus_completion;
 	struct hdmi_tx_ddc_data ddc_data;
 	struct hdmi_tx_hdcp2p2_ddc_data hdcp2p2_ddc_data;
 };
@@ -495,10 +505,9 @@ int hdmi_scdc_read(struct hdmi_tx_ddc_ctrl *ctrl, u32 data_type, u32 *val);
 int hdmi_scdc_write(struct hdmi_tx_ddc_ctrl *ctrl, u32 data_type, u32 val);
 int hdmi_setup_ddc_timers(struct hdmi_tx_ddc_ctrl *ctrl,
 			  u32 type, u32 to_in_num_lines);
-void hdmi_hdcp2p2_ddc_reset(struct hdmi_tx_ddc_ctrl *ctrl);
+void hdmi_scrambler_ddc_disable(struct hdmi_tx_ddc_ctrl *ctrl);
 void hdmi_hdcp2p2_ddc_disable(struct hdmi_tx_ddc_ctrl *ctrl);
-int hdmi_hdcp2p2_ddc_read_rxstatus(struct hdmi_tx_ddc_ctrl *ctrl, bool wait);
-int hdmi_ddc_check_status(struct hdmi_tx_ddc_ctrl *ctrl);
+int hdmi_hdcp2p2_ddc_read_rxstatus(struct hdmi_tx_ddc_ctrl *ctrl);
 int hdmi_utils_get_timeout_in_hysnc(struct msm_hdmi_mode_timing_info *timing,
 	u32 timeout_ms);
 

@@ -164,8 +164,8 @@ static int qm1d1c0042_set_config(struct dvb_frontend *fe, void *priv_cfg)
 /* divisor, vco_band parameters */
 /*  {maxfreq,  param1(band?), param2(div?) */
 static const u32 conv_table[9][3] = {
-	{ 2342400, 1, 7 },
-	{ 2151000, 1, 6 },
+	{ 2151000, 1, 7 },
+	{ 1950000, 1, 6 },
 	{ 1800000, 1, 5 },
 	{ 1600000, 1, 4 },
 	{ 1450000, 1, 3 },
@@ -382,7 +382,7 @@ static const struct dvb_tuner_ops qm1d1c0042_ops = {
 		.name = "Sharp QM1D1C0042",
 
 		.frequency_min =  950000,
-		.frequency_max = 2342400,
+		.frequency_max = 2150000,
 	},
 
 	.init = qm1d1c0042_init,

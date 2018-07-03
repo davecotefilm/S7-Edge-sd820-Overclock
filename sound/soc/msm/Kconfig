@@ -21,6 +21,14 @@ config SND_SOC_QDSP6V2
 	 audio drivers. This includes q6asm, q6adm,
 	 q6afe interfaces to DSP using apr.
 
+config SND_SOC_QDSP_DEBUG
+	bool "QDSP Audio Driver Debug Feature"
+	help
+	 Configuration to enable debugging utilities for
+	 QDSP6 based audio drivers. One debugging utility
+	 is inducing kernel panic upon encountering critical
+	 errors from DSP audio modules
+
 config DOLBY_DAP
 	bool "Enable Dolby DAP"
 	depends on SND_SOC_MSM_QDSP6V2_INTF
@@ -116,7 +124,6 @@ config SND_SOC_MSM8994
 	select QTI_PP
 	select DTS_SRS_TM
 	select SND_SOC_CPE
-	select MSM_ULTRASOUND
 	select DOLBY_DS2
 	select SND_HWDEP
         select DTS_EAGLE
@@ -149,12 +156,13 @@ config SND_SOC_MSM8996
 
 config SND_SOC_MSM8X16
 	tristate "SoC Machine driver for MSM8916"
-	depends on ARCH_MSMTITANIUM || ARCH_MSM8916
+	depends on ARCH_MSM8953 || ARCH_MSM8937
 	select SND_SOC_QDSP6V2
 	select SND_SOC_MSM_STUB
 	select SND_SOC_MSM_HOSTLESS_PCM
 	select SND_DYNAMIC_MINORS
 	select MSM_QDSP6_APRV2
+	select MSM_QDSP6V2_CODECS
 	select SND_SOC_WCD9330
 	select SND_SOC_WCD9335
 	select SND_SOC_MSM8X16_WCD
@@ -167,6 +175,7 @@ config SND_SOC_MSM8X16
 	select DOLBY_DS2
 	select SND_SOC_CPE
 	select SND_SOC_WCD_CPE
+	select SND_SOC_MSM_HDMI_DBA_CODEC_RX
 	select SND_HWDEP
         select DTS_EAGLE
 	help
@@ -175,6 +184,81 @@ config SND_SOC_MSM8X16
 	 interfaces with DSP, also it will enable
 	 the machine driver and the corresponding
 	 DAI-links
+
+config SND_SOC_MDMCALIFORNIUM
+        tristate "SoC Machine driver for MDMCALIFORNIUM boards"
+        depends on ARCH_MDMCALIFORNIUM
+        select SND_SOC_QDSP6V2
+        select SND_SOC_MSM_STUB
+        select SND_SOC_MSM_HOSTLESS_PCM
+        select SND_DYNAMIC_MINORS
+        select MSM_QDSP6_APRV3_GLINK
+        select MSM_QDSP6V2_CODECS
+        select SND_SOC_WCD9335
+        select SND_SOC_WSA881X
+        select SND_HWDEP
+        help
+         To add support for SoC audio on MDMCALIFORNIUM.
+         This will enable sound soc drivers which
+         interfaces with DSP, also it will enable
+         the machine driver and the corresponding
+         DAI-links
+
+config SND_SOC_MDM9607
+	tristate "SoC Machine driver for MDM9607 boards"
+	depends on ARCH_MDM9607
+	select SND_SOC_QDSP6V2
+	select SND_SOC_MSM_STUB
+	select SND_SOC_WCD9330
+	select SND_SOC_WCD9306
+	select SND_SOC_MSM_HOSTLESS_PCM
+	select SND_DYNAMIC_MINORS
+	select MSM_QDSP6_APRV3
+	select MSM_QDSP6V2_CODECS
+	select SND_HWDEP
+	help
+	 To add support for SoC audio on MDM9607 boards.
+	 This will enable sound soc drivers which
+	 interfaces with DSP, also it will enable
+	 the machine drivers and the corresponding
+	 DAI-links.
+
+config SND_SOC_MSM8909
+	tristate "SoC Machine driver for MSM8909 boards"
+	depends on ARCH_MSM8909
+	select SND_SOC_QDSP6V2
+	select SND_SOC_MSM_STUB
+	select SND_SOC_MSM_HOSTLESS_PCM
+	select SND_DYNAMIC_MINORS
+	select MSM_QDSP6_APRV3
+	select MSM_QDSP6V2_CODECS
+	select SND_SOC_MSM8X16_WCD
+	select SND_SOC_WSA881X_ANALOG
+	select SND_HWDEP
+	help
+	 To add support for SoC audio on MSM8909 boards.
+	 This will enable sound soc drivers which
+	 interfaces with DSP, also it will enable
+	 the machine drivers and the corresponding
+	 DAI-links.
+
+config SND_SOC_MDM9640
+	tristate "SoC Machine driver for MDM9640 boards"
+	depends on ARCH_MDM9640
+	select SND_SOC_QDSP6V2
+	select SND_SOC_MSM_STUB
+	select SND_SOC_WCD9330
+	select SND_SOC_MSM_HOSTLESS_PCM
+	select SND_DYNAMIC_MINORS
+	select MSM_QDSP6_APRV3
+	select MSM_QDSP6V2_CODECS
+	select SND_HWDEP
+        help
+	 To add support for SoC audio on MDM9640 boards.
+	 This will enable sound soc drivers which
+	 interfaces with DSP, also it will enable
+	 the machine drivers and the corresponding
+	 DAI-links.
 
 config SEC_SND_SOLUTION
 	tristate "Samsung sound solution"
@@ -194,17 +278,29 @@ config SND_SOC_JACK_AUDIO
 	help
 		To add support for Samsung Jack Audio
 
-config SEC_DIVIDE_RINGTONE_GAIN
-	tristate "Samsung ringtone gain feature"
+config SND_SOC_4SPK_MULTI_DAI
+	tristate "Samsung 4 SPK MULTI_DAI"
 	default n
 	help
-		To add support for Samsung ringtone gain feature
+		To add support for Samsung 4 Spk Multi Dai
+
+config MAINMIC_LDO
+	tristate "Samsung external mainmic ldo"
+	default n
+	help
+		To add support for Samsung external mainmic ldo
 
 config SND_SOC_PRIMARY_MI2S
 	tristate "Primary MI2S feature"
 	default n
 	help
 		To add support for Primary MI2S port
+
+config SND_SOC_QUAT_MI2S
+	tristate "Quaternary MI2S feature"
+	default n
+	help
+		To add support for Quaternary MI2S port
 
 config SND_SOC_TERTIARY_AUXPCM
 	tristate "Tertiary AUXPCM feature"

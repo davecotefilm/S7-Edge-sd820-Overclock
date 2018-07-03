@@ -562,6 +562,20 @@ config LEDS_S2MPB02
 	help
 	  This option enables support for the LEDs on the S2MPB02.
 
+config LEDS_SM5705
+	tristate "LED support for SM5705 Flashlight"
+	depends on I2C && MFD_SM5705
+	help
+	  This option enables support for on-chip LED driver on
+	  Silicon-mitus SM5705 includes Torch, Flash.
+
+config SAMSUNG_SECURE_CAMERA
+        tristate "Flash current for Secure camera"
+        depends on LEDS_CLASS
+        default n
+        help
+        Enables support for flash current for secure camera
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

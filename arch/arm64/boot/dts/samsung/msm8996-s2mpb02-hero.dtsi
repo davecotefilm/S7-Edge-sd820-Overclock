@@ -151,8 +151,9 @@
 
 				s2mpb02_b1: s2mpb02-buck1 {
 					regulator-name = "s2mpb02-buck1";
-					regulator-min-microvolt = <600000>;
-					regulator-max-microvolt = <1600000>;
+					regulator-min-microvolt = <1300000>;
+					regulator-max-microvolt = <1300000>;
+					regulator-always-on;
 				};
 
 				s2mpb02_b2: s2mpb02-buck2 {
@@ -165,7 +166,7 @@
 					regulator-name = "s2mpb02-bb";
 					regulator-min-microvolt = <3500000>;
 					regulator-max-microvolt = <3500000>;
-					regulator-always-on = <1>;
+					regulator-always-on;
 				};
 			};
 
@@ -187,7 +188,7 @@
 					/* S2MPB02_TORCH_LED_1 */
 					id = <1>;
 					/* S2MPB02_TORCH_CURRENT */
-					brightness = <0xC>;
+					brightness = <0x9>;
 					/* S2MPB02_TORCH_TIMEOUT */
 					timeout = <0xF>;
 					default-trigger = "torch_trigger";

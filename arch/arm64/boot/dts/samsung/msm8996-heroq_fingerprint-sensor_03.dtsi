@@ -96,7 +96,7 @@
 			vfsspi-vendorPin = <&pm8994_gpios 12 0x00>;
 			vfsspi-orient = <0>;
 			vfsspi-ldocontrol= <1>;
-			vfsspi-min_cpufeq_limit = <1700000>;
+			vfsspi-min_cpufreq_limit = <1700000>;
 
 			pinctrl-names = "default", "sleep", "idle";
 			pinctrl-0 = <&vfsspi_drdypin_active>;
@@ -113,7 +113,7 @@
 			etspi-ldoPin = <&pm8994_mpps 8 0x1>;
 			etspi-orient = <0>;
 			etspi-ldocontrol= <1>;
-			etspi-min_cpufeq_limit = <1700000>;
+			etspi-min_cpufreq_limit = <1700000>;
 
 			pinctrl-names = "default", "sleep", "idle";
 			pinctrl-0 = <&etspi_drdypin_active>;

@@ -32,10 +32,48 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#ifdef CONFIG_ECRYPTFS_FEK_INTEGRITY
+#include <crypto/hash.h>
+#endif
 #include "ecryptfs_kernel.h"
 
 #ifdef CONFIG_SDP
 #include "ecryptfs_dek.h"
+#endif
+
+#ifdef CONFIG_ECRYPTFS_FEK_INTEGRITY
+static int eCryptfs_hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
+{
+	struct crypto_shash *tfm;
+	int rc = 0;
+	if (!ksize || !psize)
+		return -EINVAL;
+	if (key == NULL || plaintext == NULL || output == NULL)
+		return -EINVAL;
+
+	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(tfm)) {
+		ecryptfs_printk(KERN_ERR, "crypto_alloc_ahash failed: err %ld", PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+	rc = crypto_shash_setkey(tfm, key, ksize);
+	if (rc) {
+		ecryptfs_printk(KERN_ERR, "crypto_ahash_setkey failed: err %d", rc);
+	} else {
+		char desc[sizeof(struct shash_desc) +
+			crypto_shash_descsize(tfm)] CRYPTO_MINALIGN_ATTR;
+		struct shash_desc *shash = (struct shash_desc *)desc;
+
+		shash->tfm = tfm;
+		shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+		rc = crypto_shash_digest(shash, plaintext, psize,
+					  output);
+	}
+
+	crypto_free_shash(tfm);	
+	return rc;
+}
 #endif
 
 /**
@@ -1226,7 +1264,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	memcpy(crypt_stat->key, auth_tok->session_key.decrypted_key,
 	       auth_tok->session_key.decrypted_key_size);
 	crypt_stat->key_size = ecryptfs_get_key_size_to_restore_key(
-			auth_tok->session_key.decrypted_key_size, full_cipher);
+			auth_tok->session_key.decrypted_key_size, crypt_stat);
 
 	ecryptfs_parse_full_cipher(full_cipher,
 		crypt_stat->cipher, crypt_stat->cipher_mode);
@@ -1238,7 +1276,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 				  crypt_stat->key_size);
 
 		ecryptfs_dump_salt_hex(crypt_stat->key, crypt_stat->key_size,
-				full_cipher);
+				crypt_stat);
 	}
 out:
 	kfree(msg);
@@ -1511,7 +1549,7 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		crypt_stat->key_size =
 			ecryptfs_get_key_size_to_restore_key(
 			(*new_auth_tok)->session_key.encrypted_key_size,
-			full_cipher);
+			crypt_stat);
 
 	}
 	rc = ecryptfs_init_crypt_ctx(crypt_stat);
@@ -1711,8 +1749,6 @@ static int
 decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 					 struct ecryptfs_crypt_stat *crypt_stat)
 {
-
-	unsigned char final[2*ECRYPTFS_MAX_CIPHER_NAME_SIZE+1];
 	struct scatterlist dst_sg[2];
 	struct scatterlist src_sg[2];
 	struct mutex *tfm_mutex;
@@ -1723,6 +1759,11 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	u32 decrypted_key_size = 0;
 #ifdef CONFIG_CRYPTO_FIPS
 	char iv[ECRYPTFS_DEFAULT_IV_BYTES];
+#endif
+#ifdef CONFIG_ECRYPTFS_FEK_INTEGRITY
+	unsigned char hmac_hash[FEK_HASH_SIZE];
+	int rz = 0;
+	memset(hmac_hash, 0, FEK_HASH_SIZE);
 #endif
 
 	if (unlikely(ecryptfs_verbosity > 0)) {
@@ -1784,6 +1825,28 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 #endif
 	rc = crypto_blkcipher_decrypt(&desc, dst_sg, src_sg,
 				      auth_tok->session_key.encrypted_key_size);
+#ifdef CONFIG_ECRYPTFS_FEK_INTEGRITY
+	rz = eCryptfs_hmac_sha256(auth_tok->token.password.session_key_encryption_key, crypt_stat->key_size, auth_tok->session_key.decrypted_key, auth_tok->session_key.encrypted_key_size, hmac_hash);
+	if (unlikely(rz)) {
+		mutex_unlock(tfm_mutex);
+		ecryptfs_printk(KERN_ERR, "Error Generating Hash : rz = [%d]\n", rz);
+		return rz;
+	}
+
+	if(crypt_stat->flags & ECRYPTFS_ENABLE_HMAC) {
+		if(memcmp(crypt_stat->hash, hmac_hash, FEK_HASH_SIZE)) {
+			ecryptfs_printk(KERN_ERR, "FEK Integrity Verification Failed...\n");
+			mutex_unlock(tfm_mutex);
+			return -1;
+		}
+		else {
+		ecryptfs_printk(KERN_INFO, "FEK Integrity Verification Success...\n");
+		}
+	}
+	else {
+		ecryptfs_printk(KERN_INFO, "HMAC HASH is Not Present in SD Card...\n");
+	}
+#endif
 #ifdef CONFIG_CRYPTO_FIPS
 	if (crypt_stat->mount_crypt_stat->flags & ECRYPTFS_ENABLE_CC)
 		crypto_blkcipher_set_iv(desc.tfm, iv, ECRYPTFS_DEFAULT_IV_BYTES);
@@ -1830,9 +1893,7 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
 		ecryptfs_dump_salt_hex(crypt_stat->key, crypt_stat->key_size,
-				ecryptfs_get_full_cipher(crypt_stat->cipher,
-					crypt_stat->cipher_mode,
-					final, sizeof(final)));
+				crypt_stat);
 	}
 out:
 	return rc;
@@ -1952,7 +2013,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 					&packet_size);
 			if (rc) {
 				ecryptfs_printk(KERN_ERR, "Error parsing "
-						"dek packet\n");
+						"dek packet %d\n", rc);
 			rc = -EIO;
 			goto out_wipe_list;
 			}
@@ -2402,6 +2463,16 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		ecryptfs_printk(KERN_DEBUG, "Session key encryption key:\n");
 		ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
+#ifdef CONFIG_ECRYPTFS_FEK_INTEGRITY
+	rc = eCryptfs_hmac_sha256(session_key_encryption_key, crypt_stat->key_size, 
+				crypt_stat->key, crypt_stat->key_size, crypt_stat->hash);
+
+	if (rc < 0) {
+		mutex_unlock(tfm_mutex);
+		ecryptfs_printk(KERN_ERR, "Error Generating Hash for FEK : rc = [%d]\n", rc);
+		goto out;
+	}
+#endif
 	rc = virt_to_scatterlist(crypt_stat->key, key_rec->enc_key_size,
 				 src_sg, 2);
 	if (rc < 1 || rc > 2) {
@@ -2436,10 +2507,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	ecryptfs_printk(KERN_DEBUG, "Encrypting [%zd] bytes of the key\n",
 		crypt_stat->key_size);
 	ecryptfs_printk(KERN_DEBUG, "Encrypting [%zd] bytes of the salt key\n",
-		ecryptfs_get_salt_size_for_cipher(
-			ecryptfs_get_full_cipher(crypt_stat->cipher,
-				crypt_stat->cipher_mode,
-				final, sizeof(final))));
+		ecryptfs_get_salt_size_for_cipher(crypt_stat));
 #ifdef CONFIG_CRYPTO_FIPS
 	if (crypt_stat->mount_crypt_stat->flags & ECRYPTFS_ENABLE_CC)
 		crypto_blkcipher_get_iv(desc.tfm, iv, ECRYPTFS_DEFAULT_IV_BYTES);

@@ -1288,7 +1288,7 @@ static int philips_tsa5059_tuner_set_params(struct dvb_frontend *fe)
 	u32 div;
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
 
-	if ((p->frequency < 950000) || (p->frequency > 2342400))
+	if ((p->frequency < 950000) || (p->frequency > 2150000))
 		return -EINVAL;
 
 	div = (p->frequency + (125 - 1)) / 125;	/* round correctly */

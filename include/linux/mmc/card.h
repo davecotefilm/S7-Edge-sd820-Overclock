@@ -125,6 +125,7 @@ struct mmc_ext_csd {
 	u8			raw_pwr_cl_ddr_52_360;	/* 239 */
 	u8			raw_pwr_cl_ddr_200_360;	/* 253 */
 	u8			cache_flush_policy;	/* 240 */
+#define MMC_BKOPS_URGENCY_MASK 0x3
 	u8			raw_bkops_status;	/* 246 */
 	u8			raw_sectors[4];		/* 212 - 4 bytes */
 	u8			cmdq_depth;		/* 307 */
@@ -135,6 +136,22 @@ struct mmc_ext_csd {
 	u8			fw_version;		/* 254 */
 	unsigned int            feature_support;
 #define MMC_DISCARD_FEATURE	BIT(0)                  /* CMD38 feature */
+	/*
+	 * smart_info : It's for eMMC 5.0 or later device
+	 * [63:56] : DEVICE_LIFE_TIME_EST_TYPE_B [269]
+	 * [55:48] : DEVICE_LIFE_TIME_EST_TYPE_A [268]
+	 * [47:40] : PRE_EOL_INFO [267]
+	 * [39:32] : OPTIMAL_TRIM_UNIT_SIZE [264]
+	 * [31:16] : DEVICE_VERSION [263-262]
+	 * [15:08] : HC_ERASE_GRP_SIZE [224]
+	 * [07:00] : HC_WP_GRP_SIZE [221]
+	 */
+	unsigned long long	smart_info;
+	/*
+	 * fwdate : It's for eMMC 5.0 or later device
+	 * [63:00] : FIRMWARE_VERSION [261-254]
+	 */
+	unsigned long long	fwdate;
 };
 
 struct sd_scr {
@@ -324,7 +341,8 @@ struct mmc_bkops_stats {
 struct mmc_bkops_info {
 	struct mmc_bkops_stats stats;
 	bool needs_check;
-	bool needs_manual;
+	bool needs_bkops;
+	u32  retry_counter;
 };
 
 enum mmc_pon_type {
@@ -391,6 +409,8 @@ struct mmc_card {
 #define MMC_QUIRK_BROKEN_HPI (1 << 13)		/* For devices which gets */
 						/* broken due to HPI feature */
 #define MMC_QUIRK_CACHE_DISABLE (1 << 14)	/* prevent cache enable */
+#define MMC_QUIRK_QCA6574_SETTINGS (1 << 15)	/* QCA6574 card settings*/
+#define MMC_QUIRK_QCA9377_SETTINGS (1 << 16)	/* QCA9377 card settings*/
 
 /* Make sure CMDQ is empty before queuing DCMD */
 #define MMC_QUIRK_CMDQ_EMPTY_BEFORE_DCMD (1 << 17)
@@ -686,6 +706,16 @@ static inline bool mmc_card_configured_manual_bkops(const struct mmc_card *c)
 static inline bool mmc_card_configured_auto_bkops(const struct mmc_card *c)
 {
 	return c->ext_csd.bkops_en & EXT_CSD_BKOPS_AUTO_EN;
+}
+
+static inline bool mmc_enable_qca6574_settings(const struct mmc_card *c)
+{
+	return c->quirks & MMC_QUIRK_QCA6574_SETTINGS;
+}
+
+static inline bool mmc_enable_qca9377_settings(const struct mmc_card *c)
+{
+	return c->quirks & MMC_QUIRK_QCA9377_SETTINGS;
 }
 
 #define mmc_card_name(c)	((c)->cid.prod_name)

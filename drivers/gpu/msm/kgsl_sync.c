@@ -50,14 +50,14 @@ static void kgsl_sync_pt_destroy(struct sync_pt *pt)
 static struct sync_pt *kgsl_sync_pt_dup(struct sync_pt *pt)
 {
 	struct kgsl_sync_pt *kpt = (struct kgsl_sync_pt *) pt;
-	return kgsl_sync_pt_create(sync_pt_parent(pt), kpt->context, kpt->timestamp);
+	return kgsl_sync_pt_create(pt->parent, kpt->context, kpt->timestamp);
 }
 
 static int kgsl_sync_pt_has_signaled(struct sync_pt *pt)
 {
 	struct kgsl_sync_pt *kpt = (struct kgsl_sync_pt *) pt;
 	struct kgsl_sync_timeline *ktimeline =
-		 (struct kgsl_sync_timeline *) sync_pt_parent(pt);
+		 (struct kgsl_sync_timeline *) pt->parent;
 	unsigned int ts = kpt->timestamp;
 	int ret = 0;
 
@@ -480,7 +480,6 @@ long kgsl_ioctl_syncsource_create(struct kgsl_device_private *dev_priv,
 	idr_preload(GFP_KERNEL);
 	spin_lock(&private->syncsource_lock);
 	id = idr_alloc(&private->syncsource_idr, syncsource, 1, 0, GFP_NOWAIT);
-
 	if (id > 0) {
 		syncsource->id = id;
 		param->id = id;
@@ -488,6 +487,7 @@ long kgsl_ioctl_syncsource_create(struct kgsl_device_private *dev_priv,
 	} else {
 		ret = id;
 	}
+
 	spin_unlock(&private->syncsource_lock);
 	idr_preload_end();
 

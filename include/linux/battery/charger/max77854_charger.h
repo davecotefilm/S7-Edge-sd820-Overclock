@@ -23,6 +23,7 @@
 #include <linux/mfd/max77854.h>
 #include <linux/mfd/max77854-private.h>
 #include <linux/regulator/machine.h>
+#include <linux/battery/sec_charging_common.h>
 
 enum {
 	CHIP_ID = 0,
@@ -230,7 +231,8 @@ struct max77854_charger_data {
 	unsigned int	input_current;
 	unsigned int	charging_current;
 	unsigned int	vbus_state;
-	int		aicl_on;
+	bool		aicl_on;
+	bool		is_aicl;
 	int		status;
 	int		charge_mode;
 	int uvlo_attach_flag;
@@ -244,6 +246,7 @@ struct max77854_charger_data {
 	int		irq_wcin;
 	int		irq_chgin;
 	int		irq_aicl;
+	int		irq_aicl_enabled;
 
 	/* unsufficient power */
 	bool		reg_loop_deted;

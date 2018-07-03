@@ -28,6 +28,10 @@
 #define MIN(a, b)     (((a) < (b)) ? (a) : (b))
 #define MAX(a, b)     (((a) > (b)) ? (a) : (b))
 
+/* cpu frequency table from qcom-cpufreq dt parse */
+static struct cpufreq_frequency_table *cpuftbl_L;
+static struct cpufreq_frequency_table *cpuftbl_b;
+
 /*
  * reduce voltage gap between gold and silver cluster
  * find optimal silver clock from voltage of gold clock
@@ -180,7 +184,7 @@ struct cpufreq_limit_hmp hmp_param = {
 	.hmp_boost_type			= 1,	/* 0: disable */
 	.hmp_boost_active		= 0,
 
-	.little_limit_max_freq		= 1190400,
+	.little_limit_max_freq		= 1036800,
 };
 
 void cpufreq_limit_corectl(int freq)
@@ -207,6 +211,14 @@ void cpufreq_limit_corectl(int freq)
 	}
 }
 
+void cpufreq_limit_set_table(int cpu, struct cpufreq_frequency_table * ftbl)
+{
+	if ( cpu == hmp_param.big_cpu_start )
+		cpuftbl_b = ftbl;
+	else if ( cpu == hmp_param.little_cpu_start )
+		cpuftbl_L = ftbl;
+}
+
 /**
  * cpufreq_limit_get_table - fill the cpufreq table to support HMP
  * @buf		a buf that has been requested to fill the cpufreq table
@@ -217,18 +229,15 @@ ssize_t cpufreq_limit_get_table(char *buf)
 	int i, count = 0;
 	unsigned int freq;
 
-	struct cpufreq_frequency_table *table;
+	/* big cluster table */
+	if (!cpuftbl_b)
+		goto little;
 
-	/* BIG cluster table */
-	table = cpufreq_frequency_get_table(hmp_param.big_cpu_start);
-	if (table == NULL)
-		return 0;
-
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
+	for (i = 0; cpuftbl_b[i].frequency != CPUFREQ_TABLE_END; i++)
 		count = i;
 
 	for (i = count; i >= 0; i--) {
-		freq = table[i].frequency;
+		freq = cpuftbl_b[i].frequency;
 
 		if (freq == CPUFREQ_ENTRY_INVALID)
 			continue;
@@ -243,16 +252,16 @@ ssize_t cpufreq_limit_get_table(char *buf)
 	if (hmp_param.little_divider == 1)
 		goto done;
 
-	/* Little cluster table */
-	table = cpufreq_frequency_get_table(hmp_param.little_cpu_start);
-	if (table == NULL)
-		return 0;
+little:
+	/* LITTLE cluster table */
+	if (!cpuftbl_L)
+		goto done;
 
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
+	for (i = 0; cpuftbl_L[i].frequency != CPUFREQ_TABLE_END; i++)
 		count = i;
 
 	for (i = count; i >= 0; i--) {
-		freq = table[i].frequency / hmp_param.little_divider;
+		freq = cpuftbl_L[i].frequency / hmp_param.little_divider;
 
 		if (freq == CPUFREQ_ENTRY_INVALID)
 			continue;
@@ -266,6 +275,8 @@ ssize_t cpufreq_limit_get_table(char *buf)
 done:
 	len--;
 	len += sprintf(buf + len, "\n");
+
+	pr_info("%s: %s\n", __func__, buf);
 
 	return len;
 }
@@ -324,35 +335,35 @@ static int cpufreq_limit_adjust_freq(struct cpufreq_policy *policy,
 
 	pr_debug("%s+: cpu=%d, min=%ld, max=%ld\n", __func__, policy->cpu, *min, *max);
 
-	if (is_little(policy->cpu)) { /* Little */
-		if (*min >= hmp_param.big_min_freq) { /* Big clock */
+	if (is_little(policy->cpu)) { /* LITTLE */
+		if (*min >= hmp_param.big_min_freq) { /* big clock */
 			*min = hmp_param.little_min_lock * hmp_param.little_divider;
 		}
-		else { /* Little clock */
+		else { /* LITTLE clock */
 			*min *= hmp_param.little_divider;
 		}
 
-		if (*max >= hmp_param.big_min_freq) { /* Big clock */
+		if (*max >= hmp_param.big_min_freq) { /* big clock */
 			*max = policy->cpuinfo.max_freq;
 		}
-		else { /* Little clock */
+		else { /* LITTLE clock */
 			*max *= hmp_param.little_divider;
 		}
 	}
-	else { /* BIG */
-		if (*min >= hmp_param.big_min_freq) { /* Big clock */
+	else { /* big */
+		if (*min >= hmp_param.big_min_freq) { /* big clock */
 			hmp_boost_active = 1;
 		}
-		else { /* Little clock */
+		else { /* LITTLE clock */
 			*min = policy->cpuinfo.min_freq;
 			hmp_boost_active = 0;
 		}
 
-		if (*max >= hmp_param.big_min_freq) { /* Big clock */
+		if (*max >= hmp_param.big_min_freq) { /* big clock */
 			pr_debug("%s: big_min_freq=%ld, max=%ld\n", __func__,
 				hmp_param.big_min_freq, *max);
 		}
-		else { /* Little clock */
+		else { /* LITTLE clock */
 			*max = policy->cpuinfo.min_freq;
 			hmp_boost_active = 0;
 		}
@@ -505,31 +516,31 @@ static struct global_attr cpufreq_limit_requests_attr =
 #ifdef CONFIG_SCHED_HMP
 #define MAX_ATTRIBUTE_NUM 12
 
-#define show_one(file_name, object)									\
-static ssize_t show_##file_name										\
+#define show_one(file_name, object)						\
+static ssize_t show_##file_name							\
 (struct kobject *kobj, struct attribute *attr, char *buf)			\
-{																	\
-	return sprintf(buf, "%u\n", hmp_param.object);					\
+{										\
+	return sprintf(buf, "%u\n", hmp_param.object);				\
 }
 
-#define show_one_ulong(file_name, object)							\
-static ssize_t show_##file_name										\
+#define show_one_ulong(file_name, object)					\
+static ssize_t show_##file_name							\
 (struct kobject *kobj, struct attribute *attr, char *buf)			\
-{																	\
-	return sprintf(buf, "%lu\n", hmp_param.object);					\
+{										\
+	return sprintf(buf, "%lu\n", hmp_param.object);			\
 }
 
-#define store_one(file_name, object)								\
-static ssize_t store_##file_name									\
+#define store_one(file_name, object)						\
+static ssize_t store_##file_name						\
 (struct kobject *a, struct attribute *b, const char *buf, size_t count)		\
-{																	\
-	int ret;														\
-																	\
-	ret = sscanf(buf, "%lu", &hmp_param.object);					\
-	if (ret != 1)													\
-		return -EINVAL;												\
-																	\
-	return count;													\
+{										\
+	int ret;								\
+										\
+	ret = sscanf(buf, "%lu", &hmp_param.object);				\
+	if (ret != 1)								\
+		return -EINVAL;							\
+										\
+	return count;								\
 }
 
 static ssize_t show_little_cpu_num(struct kobject *kobj, struct attribute *attr, char *buf)

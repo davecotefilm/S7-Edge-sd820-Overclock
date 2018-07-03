@@ -365,7 +365,7 @@ static int hwrng_fillfn(void *unused)
 static void start_khwrngd(void)
 {
 	hwrng_fill = kthread_run(hwrng_fillfn, NULL, "hwrng");
-	if (hwrng_fill == ERR_PTR(-ENOMEM)) {
+	if (IS_ERR(hwrng_fill)) {
 		pr_err("hwrng_fill thread creation failed");
 		hwrng_fill = NULL;
 	}
@@ -406,10 +406,12 @@ int hwrng_register(struct hwrng *rng)
 
 	old_rng = current_rng;
 	if (!old_rng) {
-		err = hwrng_init(rng);
-		if (err)
-			goto out_unlock;
 		current_rng = rng;
+		err = hwrng_init(rng);
+		if (err) {
+			current_rng = NULL;
+			goto out_unlock;
+		} 
 	}
 	err = 0;
 	if (!old_rng) {

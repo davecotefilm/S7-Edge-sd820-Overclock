@@ -397,29 +397,6 @@ static int msm_voice_gain_put(struct snd_kcontrol *kcontrol,
 	int volume = ucontrol->value.integer.value[0];
 	uint32_t session_id = ucontrol->value.integer.value[1];
 	int ramp_duration = ucontrol->value.integer.value[2];
-#if defined(CONFIG_SEC_DIVIDE_RINGTONE_GAIN)
-	bool is_ringback = false;
-
-	if ((volume < 0) || (ramp_duration < 0)
-		|| (ramp_duration > MAX_RAMP_DURATION)) {
-		pr_err(" %s Invalid arguments", __func__);
-
-		ret = -EINVAL;
-		goto done;
-	}
-
-	if (volume & 0x200) {
-		pr_debug("%s: ringback tone volume ctrl\n", __func__);
-		volume -= 0x200;
-		is_ringback = true;
-	}
-
-	pr_debug("%s: volume: %d session_id: %#x ramp_duration: %d\n", __func__,
-		volume, session_id, ramp_duration);
-
-	voc_set_rx_vol_step(session_id, RX_PATH,
-			(is_ringback ? (volume+100) : volume), ramp_duration);
-#else
 
 	if ((volume < 0) || (ramp_duration < 0)
 		|| (ramp_duration > MAX_RAMP_DURATION)) {
@@ -433,7 +410,6 @@ static int msm_voice_gain_put(struct snd_kcontrol *kcontrol,
 		volume, session_id, ramp_duration);
 
 	voc_set_rx_vol_step(session_id, RX_PATH, volume, ramp_duration);
-#endif
 
 done:
 	return ret;
@@ -633,6 +609,29 @@ static int msm_voice_cvd_version_get(struct snd_kcontrol *kcontrol,
 }
 
 #ifdef CONFIG_SEC_VOC_SOLUTION
+static int msm_sec_dha_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int msm_sec_dha_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int i = 0;
+
+	int dha_mode = ucontrol->value.integer.value[0];
+	int dha_select = ucontrol->value.integer.value[1];
+	short dha_param[12] = {0,};
+
+	for (i = 0; i < 12; i++) {
+		dha_param[i] = (short)ucontrol->value.integer.value[2+i];
+		pr_debug("msm_dha_put : param - %d\n", dha_param[i]);
+	}
+
+	return voice_sec_set_dha_data(dha_mode,	dha_select, dha_param);
+}
+
 static int msm_sec_nbmode_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
@@ -682,6 +681,29 @@ static int msm_loopback_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[0] = voc_get_loopback_enable();
 	return 0;
 }
+
+static const char const *voice_device[] =
+	{"ETC", "SPK", "EAR", "BT", "RCV"};
+
+static const struct soc_enum msm_voice_device_enum[] = {
+		SOC_ENUM_SINGLE_EXT(5, voice_device),
+};
+
+static int msm_sec_voiceinfo_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int msm_sec_voiceinfo_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int voice_device = ucontrol->value.integer.value[0];
+
+	pr_debug("%s: voice device=%d\n", __func__, voice_device);
+
+	return voice_sec_set_device_info(voice_device);
+}
 #endif /*CONFIG_SEC_VOC_SOLUTION*/
 
 static struct snd_kcontrol_new msm_voice_controls[] = {
@@ -703,12 +725,16 @@ static struct snd_kcontrol_new msm_voice_controls[] = {
 	SOC_SINGLE_MULTI_EXT("HD Voice Enable", SND_SOC_NOPM, 0, VSID_MAX, 0, 2,
 			     NULL, msm_voice_hd_voice_put),
 #ifdef CONFIG_SEC_VOC_SOLUTION
+	SOC_SINGLE_MULTI_EXT("Sec Set DHA data", SND_SOC_NOPM, 0, 65535, 0, 14,
+				msm_sec_dha_get, msm_sec_dha_put),
 	SOC_SINGLE_EXT("NB Mode", SND_SOC_NOPM, 0, 1, 0,
 				msm_sec_nbmode_get, msm_sec_nbmode_put),
 	SOC_SINGLE_EXT("Speaker Sensor Mode", SND_SOC_NOPM, 0, 1, 0,
 				msm_sec_spkmode_get, msm_sec_spkmode_put),
 	SOC_SINGLE_EXT("Loopback Enable", SND_SOC_NOPM, 0, LOOPBACK_MAX, 0,
 				msm_loopback_get, msm_loopback_put),
+	SOC_ENUM_EXT("Voice Device Info", msm_voice_device_enum[0],
+				msm_sec_voiceinfo_get, msm_sec_voiceinfo_put),
 #endif /*CONFIG_SEC_VOC_SOLUTION*/
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,

@@ -28,15 +28,25 @@ struct msm_eeprom_ctrl_t;
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
 #define PROPERTY_MAXSIZE 32
-#define FRONT_CAM_MAP_VERSION_ADDR  (0x0043)
-#define REAR_CAM_MAP_VERSION_ADDR  (0x0063)
+#ifdef CONFIG_MSM_REAR_ROM_TYPE_EEPROM
+#define REAR_CAM_MAP_VERSION_ADDR   0x0040
+#define FROM_AF_CAL_PAN_ADDR        0x0110
+#define FROM_AF_CAL_MACRO_ADDR      0x010C
+/* Module ID : 0x00A8~0x00B7(16Byte) for EEPROM (Don't support OTP)*/
+#define FROM_MODULE_ID_ADDR         0x00A8
+#else
+#define REAR_CAM_MAP_VERSION_ADDR   0x0063
+#define FROM_AF_CAL_PAN_ADDR        0x3C30
+#define FROM_AF_CAL_MACRO_ADDR      0x3C28
+/* Module ID : 0x00A8~0x00B7(16Byte) for FROM, EEPROM (Don't support OTP)*/
+#define FROM_MODULE_ID_ADDR         0x00AE
+#endif
 
-#define FROM_AF_CAL_PAN_ADDR          0x3C30
-#define FROM_AF_CAL_MACRO_ADDR        0x3C28
-#define FROM_FRONT_SENSOR_ID_ADDR     0x0054
-#define FROM_REAR_SENSOR_ID_ADDR      0x00B8
-
-#define FROM_SENSOR_ID_SIZE 16
+#define FRONT_CAM_MAP_VERSION_ADDR  0x0043
+#define FROM_FRONT_SENSOR_ID_ADDR   0x0054
+#define FROM_REAR_SENSOR_ID_ADDR    0x00B8
+#define FROM_SENSOR_ID_SIZE         16
+#define FROM_MODULE_ID_SIZE         10
 
 struct msm_eeprom_ctrl_t {
 	struct platform_device *pdev;
@@ -54,6 +64,7 @@ struct msm_eeprom_ctrl_t {
 	uint16_t is_supported;
 	struct msm_eeprom_board_info *eboard_info;
 	uint32_t subdev_id;
+	int32_t userspace_probe;
 };
 
 #endif

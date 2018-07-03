@@ -51,10 +51,37 @@ struct msm_mi2s_pdata {
 	u16 rx_sd_lines;
 	u16 tx_sd_lines;
 	u16 intf_id;
+	u16 slave;
+	u32 ext_mclk_rate;
 };
 
 struct msm_i2s_data {
 	u32 capability; /* RX or TX */
 	u16 sd_lines;
 };
+
+struct msm_dai_tdm_group_config {
+	u16 group_id;
+	u16 num_ports;
+	u16 *port_id;
+	u32 clk_rate;
+};
+
+struct msm_dai_tdm_config {
+	u16 sync_mode;
+	u16 sync_src;
+	u16 data_out;
+	u16 invert_sync;
+	u16 data_delay;
+	u32 data_align;
+	u16 header_start_offset;
+	u16 header_width;
+	u16 header_num_frame_repeat;
+};
+
+struct msm_dai_tdm_pdata {
+	struct msm_dai_tdm_group_config group_config;
+	struct msm_dai_tdm_config config;
+};
+
 #endif

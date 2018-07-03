@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -87,6 +87,8 @@
 
 #define WCD9XXX_DMIC_SAMPLE_RATE_UNDEFINED 0
 
+#define WCD9XXX_DMIC_CLK_DRIVE_UNDEFINED 0
+
 struct wcd9xxx_amic {
 	/*legacy mode, txfe_enable and txfe_buff take 7 input
 	 * each bit represent the channel / TXFE number
@@ -171,11 +173,20 @@ struct wcd9xxx_regulator {
 	struct regulator *regulator;
 };
 
+#define MAX_IMPEDANCE_TALBE 7
+
+struct wcd9xxx_gain_table {
+	uint32_t min;      /* Min impedance */
+	uint32_t max;      /* Max impedance */
+	int gain;   /* additional gain */
+};
+
 struct wcd9xxx_pdata {
 	int irq;
 	int irq_base;
 	int num_irqs;
 	int reset_gpio;
+	struct device_node *wcd_rst_np;
 	struct wcd9xxx_amic amic_settings;
 	struct slim_device slimbus_slave_device;
 	struct wcd9xxx_micbias_setting micbias;
@@ -184,8 +195,11 @@ struct wcd9xxx_pdata {
 	u32 mclk_rate;
 	u32 dmic_sample_rate;
 	u32 mad_dmic_sample_rate;
+	u32 ecpp_dmic_sample_rate;
+	u32 dmic_clk_drv;
 	enum codec_variant cdc_variant;
 	u16 use_pinctrl;
+	struct wcd9xxx_gain_table imp_table[MAX_IMPEDANCE_TALBE];
 };
 
 #endif

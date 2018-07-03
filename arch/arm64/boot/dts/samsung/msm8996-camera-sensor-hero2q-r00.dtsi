@@ -335,6 +335,7 @@
 				<&clock_mmss clk_mclk1_clk_src>,
 				<&clock_mmss clk_camss_mclk1_clk>;
 		clock-names = "cam_src_clk", "cam_clk", "cam_src_clk1", "cam_clk1";
+		qcom,clock-rates = <24000000 0 24000000 0>;
 		cam,isp = <0>;                  // 0 : INT , 1 : EXT , 2 : SOC
 		cam,cal_memory = <1>;           // 0 : N , 1 : FROM , 2 : EEPROM , 3 : OTP
 		cam,read_version = <1>;         // 0 : SYSFS , 1 : CAMON
@@ -389,6 +390,7 @@
 			<&clock_mmss clk_mclk1_clk_src>,
 			<&clock_mmss clk_camss_mclk1_clk>;
 		clock-names = "cam_src_clk", "cam_clk", "cam_src_clk1", "cam_clk1";
+		qcom,clock-rates = <24000000 0 24000000 0>;
 		cam,isp = <0>;                  // 0 : INT , 1 : EXT , 2 : SOC
 		cam,cal_memory = <2>;           // 0 : N , 1 : FROM , 2 : EEPROM , 3 : OTP
 		cam,read_version = <0>;         // 0 : SYSFS , 1 : CAMON
@@ -437,6 +439,7 @@
 		clocks = <&clock_mmss clk_mclk2_clk_src>,
 			<&clock_mmss clk_camss_mclk2_clk>;
 		clock-names = "cam_src_clk", "cam_clk";
+		qcom,clock-rates = <24000000 0>;
 		cam,isp = <0>;                  // 0 : INT , 1 : EXT , 2 : SOC
 		cam,cal_memory = <2>;           // 0 : N , 1 : FROM , 2 : EEPROM , 3 : OTP
 		cam,read_version = <0>;         // 0 : SYSFS , 1 : CAMON

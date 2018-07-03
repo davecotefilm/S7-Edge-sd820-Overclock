@@ -78,7 +78,7 @@ static int alps_bsbe1_tuner_set_params(struct dvb_frontend *fe)
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
 	struct i2c_adapter *i2c = fe->tuner_priv;
 
-	if ((p->frequency < 950000) || (p->frequency > 2342400))
+	if ((p->frequency < 950000) || (p->frequency > 2150000))
 		return -EINVAL;
 
 	div = p->frequency / 1000;

@@ -48,13 +48,15 @@ struct sec_param_data {
 #else
 	unsigned int reserved5;
 #endif
-#ifdef CONFIG_MUIC_HV
+#if defined(CONFIG_MUIC_HV) || defined(CONFIG_MUIC_UNIVERSAL_SM5705_AFC)
 	unsigned int afc_disable;
 #else
 	unsigned int reserved6;
 #endif
 	unsigned int cp_reserved_mem;
 	char param_carrierid[4]; //only use 3digits, 1 for null
+	char param_sales[4]; //only use 3digits, 1 for null
+	char param_lcd_resolution[8]; // Variable LCD resolution
 };
 
 struct sec_param_data_s {
@@ -90,12 +92,34 @@ enum sec_param_index {
 #ifdef CONFIG_WIRELESS_CHARGER_HIGH_VOLTAGE
 	param_index_wireless_charging_mode,
 #endif
-#ifdef CONFIG_MUIC_HV
+#if defined(CONFIG_MUIC_HV) || defined(CONFIG_MUIC_UNIVERSAL_SM5705_AFC)
 	param_index_afc_disable,
 #endif	
 	param_index_cp_reserved_mem,
+	param_index_lcd_resolution,
+	param_index_max_sec_param_data,
+#ifdef CONFIG_USER_RESET_DEBUG
+	param_index_reset_ex_info,
+	param_index_reset_summary_info,
+	param_index_reset_summary,
+	param_index_reset_klog_info,
+	param_index_reset_klog,
+#endif
 };
 
 extern bool sec_get_param(enum sec_param_index index, void *value);
 extern bool sec_set_param(enum sec_param_index index, void *value);
+
+#define SEC_PARAM_FILE_SIZE	(0xA00000)		/* 10MB */
+#define SEC_PARAM_FILE_OFFSET (SEC_PARAM_FILE_SIZE - 0x100000)
+#define SECTOR_UNIT_SIZE (4096) /* UFS */
+
+#ifdef CONFIG_USER_RESET_DEBUG 
+#define SEC_PARAM_DEBUG_HEADER_OFFSET	(4*1024*1024 - 4*1024)
+#define SEC_PARAM_KLOG_OFFSET		(4*1024*1024)
+#define SEC_PARAM_DUMP_SUMMARY_OFFSET	(6*1024*1024)
+#define SEC_PARAM_KLOG_SIZE		(2*1024*1024)
+#define SEC_PARAM_DUMP_SUMMARY_SIZE	(2*1024*1024)
+#define SEC_PARAM_EX_INFO_OFFSET (SEC_PARAM_FILE_SIZE - (3 * SECTOR_UNIT_SIZE))
+#endif
 

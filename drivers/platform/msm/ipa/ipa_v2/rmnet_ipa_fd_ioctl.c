@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/rmnet_ipa_fd_ioctl.h>
+#include <linux/vmalloc.h>
 #include "ipa_qmi_service.h"
 
 #define DRIVER_NAME "wwan_ioctl"
@@ -71,10 +72,10 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case WAN_IOC_ADD_FLT_RULE:
-		IPAWANDBG("device %s got WAN_IOC_ADD_FLT_RULE :>>>\n",
+		IPAWANERR("device %s got WAN_IOC_ADD_FLT_RULE :>>>\n",
 		DRIVER_NAME);
 		pyld_sz = sizeof(struct ipa_install_fltr_rule_req_msg_v01);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -99,7 +100,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		IPAWANDBG("device %s got WAN_IOC_ADD_FLT_RULE_INDEX :>>>\n",
 		DRIVER_NAME);
 		pyld_sz = sizeof(struct ipa_fltr_installed_notif_req_msg_v01);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -124,7 +125,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		IPAWANDBG("device %s got WAN_IOC_VOTE_FOR_BW_MBPS :>>>\n",
 		DRIVER_NAME);
 		pyld_sz = sizeof(uint32_t);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -148,7 +149,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		IPAWANDBG("device %s got WAN_IOCTL_POLL_TETHERING_STATS :>>>\n",
 			  DRIVER_NAME);
 		pyld_sz = sizeof(struct wan_ioctl_poll_tethering_stats);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -173,7 +174,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		IPAWANDBG("device %s got WAN_IOCTL_SET_DATA_QUOTA :>>>\n",
 			  DRIVER_NAME);
 		pyld_sz = sizeof(struct wan_ioctl_set_data_quota);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -198,7 +199,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		IPAWANDBG("device %s got WAN_IOC_SET_TETHER_CLIENT_PIPE :>>>\n",
 				DRIVER_NAME);
 		pyld_sz = sizeof(struct wan_ioctl_set_tether_client_pipe);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -219,7 +220,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		IPAWANDBG("device %s got WAN_IOC_QUERY_TETHER_STATS :>>>\n",
 				DRIVER_NAME);
 		pyld_sz = sizeof(struct wan_ioctl_query_tether_stats);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -246,7 +247,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		IPAWANDBG("device %s got WAN_IOC_RESET_TETHER_STATS :>>>\n",
 				DRIVER_NAME);
 		pyld_sz = sizeof(struct wan_ioctl_reset_tether_stats);
-		param = kzalloc(pyld_sz, GFP_KERNEL);
+		param = vzalloc(pyld_sz);
 		if (!param) {
 			retval = -ENOMEM;
 			break;
@@ -266,7 +267,7 @@ static long wan_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	default:
 		retval = -ENOTTY;
 	}
-	kfree(param);
+	vfree(param);
 	return retval;
 }
 

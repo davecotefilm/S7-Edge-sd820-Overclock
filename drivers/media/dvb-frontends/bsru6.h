@@ -109,7 +109,7 @@ static int alps_bsru6_tuner_set_params(struct dvb_frontend *fe)
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
 	struct i2c_adapter *i2c = fe->tuner_priv;
 
-	if ((p->frequency < 950000) || (p->frequency > 2342400))
+	if ((p->frequency < 950000) || (p->frequency > 2150000))
 		return -EINVAL;
 
 	div = (p->frequency + (125 - 1)) / 125;	/* round correctly */

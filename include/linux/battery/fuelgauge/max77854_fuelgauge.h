@@ -35,10 +35,11 @@
 #define CAPACITY_SCALE_DEFAULT_CURRENT 1000
 #define CAPACITY_SCALE_HV_CURRENT 600
 
-enum max77854_valrt_mode {
-	NORMAL_MODE = 0,
-	VEMPTY_MODE,
-	VEMPTY_RECOVERY_MODE,
+enum max77854_vempty_mode {
+	VEMPTY_MODE_HW = 0,
+	VEMPTY_MODE_SW,
+	VEMPTY_MODE_SW_VALERT,
+	VEMPTY_MODE_SW_RECOVERY,
 };
 
 struct max77854_fg_info {
@@ -94,6 +95,9 @@ enum {
 struct battery_data_t {
 	u32 V_empty;
 	u32 V_empty_origin;
+	u32 sw_v_empty_vol;
+	u32 sw_v_empty_vol_cisd;
+	u32 sw_v_empty_recover_vol;
 	u32 QResidual20;
 	u32 QResidual30;
 	u32 TempCo;
@@ -172,13 +176,11 @@ struct max77854_fuelgauge_data {
 	int cv_data_lenth;
 
 	bool using_temp_compensation;
-	bool low_temp_compensation_en;
 	bool using_hw_vempty;
-	bool hw_v_empty;
-	int sw_v_empty;
+	unsigned int vempty_mode;
+	int temperature;
 
-	unsigned int low_temp_limit;
-	unsigned int low_temp_recovery;
+	int low_temp_limit;
 
 	bool auto_discharge_en;
 	u32 discharge_temp_threshold;

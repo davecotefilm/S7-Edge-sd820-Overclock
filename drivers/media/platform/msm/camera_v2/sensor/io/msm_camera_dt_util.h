@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,8 +15,10 @@
 
 #include <soc/qcom/camera2.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/of.h>
 #include "msm_camera_i2c.h"
+#include "cam_soc_api.h"
 
 #define INVALID_VREG 100
 
@@ -30,9 +32,23 @@ enum check_fw {
 	CHECK_COMPANION_FW,
 };
 
+
+enum cam_sub_type {
+	SUB_DEVICE_TYPE_SENSOR = 1,
+	SUB_DEVICE_TYPE_EEPROM,
+	SUB_DEVICE_TYPE_FLASH,
+	SUB_DEVICE_TYPE_MAX,
+};
+
+#define NOW_POWER_ON 0x1<<SUB_DEVICE_TYPE_MAX
+#define NOW_POWER_OFF 0x0
+#define NO_POWER_OFF 0xFF
+
 int msm_camera_write_sysfs(char* path, const char* data, uint32_t data_size);
 int msm_camera_fw_check(const char read_fw_crc, uint8_t index);
 #endif
+
+#define INVALID_VREG 100
 
 int msm_sensor_get_sub_module_index(struct device_node *of_node,
 	struct  msm_sensor_info_t **s_info);
@@ -64,24 +80,22 @@ int msm_camera_get_dt_camera_info(struct device_node *of_node, char *buf);
 
 int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 	enum msm_camera_device_type_t device_type,
-	struct msm_camera_i2c_client *sensor_i2c_client);
+	struct msm_camera_i2c_client *sensor_i2c_client,
+	uint32_t is_secure, int sub_device);
 
 int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 	enum msm_camera_device_type_t device_type,
-	struct msm_camera_i2c_client *sensor_i2c_client);
-
-#if defined(CONFIG_SAMSUNG_QUICK_SWITCHING)
-int msm_camera_power_up_adc(struct msm_camera_power_ctrl_t *ctrl,
-	enum msm_camera_device_type_t device_type,
-	struct msm_camera_i2c_client *sensor_i2c_client, int adc_mode);
-
-int msm_camera_power_down_adc(struct msm_camera_power_ctrl_t *ctrl,
-	enum msm_camera_device_type_t device_type,
-	struct msm_camera_i2c_client *sensor_i2c_client, int adc_mode);
-#endif
+	struct msm_camera_i2c_client *sensor_i2c_client,
+	uint32_t is_secure, int sub_device);
 
 int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 	int num_vreg, struct msm_sensor_power_setting *power_setting,
 	uint16_t power_setting_size);
 
+int msm_camera_pinctrl_init
+	(struct msm_pinctrl_info *sensor_pctrl, struct device *dev);
+
+int32_t msm_sensor_driver_get_gpio_data(
+	struct msm_camera_gpio_conf **gpio_conf,
+	struct device_node *of_node);
 #endif

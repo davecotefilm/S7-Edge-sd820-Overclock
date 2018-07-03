@@ -330,7 +330,8 @@ int rtc6213n_fops_release(struct file *file)
 		tasklet_kill(&my_tasklet);
 	}
 	mutex_unlock(&radio->lock);
-	dev_info(&radio->videodev->dev, "rtc6213n_fops_release : Exit\n");
+	dev_info(&radio->videodev->dev, "rtc6213n_fops_release Exit retval = %d\n",
+	retval);
 
 	return retval;
 }
@@ -381,15 +382,19 @@ static irqreturn_t rtc6213n_i2c_interrupt(int irq, void *dev_id)
 	if (retval < 0)
 		goto end;
 #endif
-
-	if (radio->registers[STATUS] & STATUS_STD) {
-		complete(&radio->completion);
-		dev_info(&radio->videodev->dev, "rtc6213n_i2c_interrupt Seek/Tune Done\n");
-		dev_info(&radio->videodev->dev, "STATUS=0x%4.4hx, STD = %d, SF = %d, RSSI = %d\n",
+	if ((rtc6213n_wq_flag == SEEK_WAITING) ||
+		(rtc6213n_wq_flag == TUNE_WAITING)) {
+		if (radio->registers[STATUS] & STATUS_STD) {
+			rtc6213n_wq_flag = WAIT_OVER;
+			wake_up_interruptible(&rtc6213n_wq);
+			/* ori: complete(&radio->completion); */
+			dev_info(&radio->videodev->dev, "rtc6213n_i2c_interrupt Seek/Tune Done\n");
+			dev_info(&radio->videodev->dev, "STATUS=0x%4.4hx, STD = %d, SF = %d, RSSI = %d\n",
 			radio->registers[STATUS],
 			(radio->registers[STATUS] & STATUS_STD) >> 14,
 			(radio->registers[STATUS] & STATUS_SF) >> 13,
 			(radio->registers[RSSI] & RSSI_RSSI));
+		}
 		goto end;
 	}
 
@@ -540,6 +545,7 @@ static int rtc6213n_i2c_probe(struct i2c_client *client,
 	radio->wr_index = 0;
 	radio->rd_index = 0;
 	init_waitqueue_head(&radio->read_queue);
+	init_waitqueue_head(&rtc6213n_wq);
 
 	/* fmint-gpio */
 	fmint_gpio = of_get_named_gpio(client->dev.of_node , "fmint-gpio", 0);

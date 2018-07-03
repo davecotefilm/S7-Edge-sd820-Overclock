@@ -82,46 +82,6 @@ DEFINE_EVENT(loadeval, cpufreq_interactive_notyet,
 	    TP_ARGS(cpu_id, load, curtarg, curactual, newtarg)
 );
 
-DECLARE_EVENT_CLASS(modeeval,
-	    TP_PROTO(unsigned long cpu_id, unsigned long single_load, unsigned long total_load,
-		     unsigned long single_enter, unsigned long multi_enter,
-		     unsigned long single_exit, unsigned long multi_exit, unsigned long mode),
-		    TP_ARGS(cpu_id, single_load, total_load, single_enter, multi_enter, single_exit, multi_exit, mode),
-
-	    TP_STRUCT__entry(
-		    __field(unsigned long, cpu_id      )
-		    __field(unsigned long, single_load )
-		    __field(unsigned long, total_load  )
-		    __field(unsigned long, single_enter)
-		    __field(unsigned long, multi_enter )
-		    __field(unsigned long, single_exit )
-		    __field(unsigned long, multi_exit  )
-		    __field(unsigned long, mode)
-	    ),
-
-	    TP_fast_assign(
-		    __entry->cpu_id = cpu_id;
-		    __entry->single_load = single_load;
-		    __entry->total_load = total_load;
-		    __entry->single_enter = single_enter;
-		    __entry->multi_enter = multi_enter;
-		    __entry->single_exit = single_exit;
-		    __entry->multi_exit = multi_exit;
-		    __entry->mode = mode ;
-	    ),
-
-	    TP_printk("cpu=%lu sload=%3lu tload=%3lu s_en=%6lu m_en=%6lu s_ex=%6lu m_ex=%6lu ret=%lu",
-		      __entry->cpu_id, __entry->single_load, __entry->total_load, __entry->single_enter,
-		      __entry->multi_enter, __entry->single_exit, __entry->multi_exit, __entry->mode)
-);
-
-DEFINE_EVENT(modeeval, cpufreq_interactive_mode,
-	    TP_PROTO(unsigned long cpu_id, unsigned long single_load, unsigned long total_load,
-		     unsigned long single_enter, unsigned long multi_enter,
-		     unsigned long single_exit, unsigned long multi_exit, unsigned long mode),
-	    TP_ARGS(cpu_id, single_load, total_load, single_enter, multi_enter, single_exit, multi_exit, mode)
-);
-
 TRACE_EVENT(cpufreq_interactive_boost,
 	    TP_PROTO(const char *s),
 	    TP_ARGS(s),
@@ -159,21 +119,45 @@ TRACE_EVENT(cpufreq_interactive_load_change,
 );
 
 TRACE_EVENT(cpufreq_interactive_cpuload,
-	    TP_PROTO(unsigned long cpu_id, unsigned long load,
-		     unsigned int new_task_pct),
-	    TP_ARGS(cpu_id, load, new_task_pct),
+	    TP_PROTO(unsigned long cpu_id, unsigned int load,
+		     unsigned int new_task_pct, unsigned int prev,
+		     unsigned int predicted),
+	    TP_ARGS(cpu_id, load, new_task_pct, prev, predicted),
 	    TP_STRUCT__entry(
 		__field(unsigned long, cpu_id)
-		__field(unsigned long, load)
-		__field(unsigned long, new_task_pct)
+		__field(unsigned int, load)
+		__field(unsigned int, new_task_pct)
+		__field(unsigned int, prev)
+		__field(unsigned int, predicted)
 	    ),
 	    TP_fast_assign(
 		__entry->cpu_id = cpu_id;
 		__entry->load = load;
 		__entry->new_task_pct = new_task_pct;
+		__entry->prev = prev;
+		__entry->predicted = predicted;
 	    ),
-	    TP_printk("cpu=%lu load=%lu new_task_pct=%lu", __entry->cpu_id,
-		      __entry->load, __entry->new_task_pct)
+	    TP_printk("cpu=%lu load=%u new_task_pct=%u prev=%u predicted=%u",
+		      __entry->cpu_id, __entry->load, __entry->new_task_pct,
+		      __entry->prev, __entry->predicted)
+);
+
+TRACE_EVENT(cpufreq_interactive_cpuutil,
+	    TP_PROTO(unsigned long cpu_id, unsigned long cpu_util,
+		     unsigned long cpu_load),
+	    TP_ARGS(cpu_id, cpu_util, cpu_load),
+	    TP_STRUCT__entry(
+		__field(unsigned long, cpu_id)
+		__field(unsigned long, cpu_util)
+		__field(unsigned long, cpu_load)
+	    ),
+	    TP_fast_assign(
+		__entry->cpu_id = cpu_id;
+		__entry->cpu_load = cpu_load;
+		__entry->cpu_util = cpu_util;
+	    ),
+	    TP_printk("cpu=%lu load=%lu demand=%lu", __entry->cpu_id,
+		      __entry->cpu_util, __entry->cpu_load)
 );
 
 #endif /* _TRACE_CPUFREQ_INTERACTIVE_H */

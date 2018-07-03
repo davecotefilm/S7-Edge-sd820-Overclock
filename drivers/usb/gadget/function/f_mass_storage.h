@@ -175,20 +175,16 @@ struct fsg_common {
 	const struct fsg_operations	*ops;
 	/* Gadget's private data. */
 	void			*private_data;
-#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	char vendor_string[8 + 1];
 	char product_string[16 + 1];
 	/* Additional image version info for SUA */
 	char version_string[100 + 1];
-#endif
 	char inquiry_string[INQUIRY_MAX_LEN];
 	/* LUN name for sysfs purpose */
 	char name[FSG_MAX_LUNS][LUN_NAME_LEN];
 	struct kref		ref;
 	struct timer_list	vfs_timer;
 };
-
-
 #endif
 
 static inline struct fsg_opts *

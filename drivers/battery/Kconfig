@@ -55,12 +55,25 @@ config STEP_CHARGING
 	help
 	 Say Y to include support for step charging
 
+config BATTERY_CISD
+	bool "support for cisd"
+	help
+	 Say Y to include support for cisd
+	 cisd means cell internal short detection
+
 config UPDATE_BATTERY_DATA
 	bool "support for updating battery data"
 	default n
 	depends on BATTERY_SAMSUNG && OF
 	help
 	 Say Y to include support for step charging
+
+config SAMSUNG_BATTERY_ENG_TEST
+	tristate "set test mode in eng build"
+	default n
+	depends on BATTERY_SAMSUNG
+	help
+	 Say Y to set test mode in eng build
 
 # Fuel Gauge
 config FUELGAUGE_RT5033
@@ -504,6 +517,22 @@ config CHARGER_SM5703
 	 This driver source code implemented
 	 all functions for SM5703 charger.
 
+config CHARGER_SM5703_SOFT_START_CHARGING
+	bool "SM5703 soft step charging"
+	default n
+	depends on CHARGER_SM5703
+	help
+	  Say Y here to enable support for SM5703 soft step charging
+	  You have to define CHARGER_SM5703
+
+config CHARGER_SM5703_DUALPATH
+	bool "SM5703 dual path"
+	default n
+	depends on CHARGER_SM5703
+	help
+	  Say Y here to enable support for SM5703 dual path setting for removable battery models in S/W
+	  You have to define CHARGER_SM5703
+
 config CHARGER_DA9155
 	tristate "DA9155 charger driver"
 	default n
@@ -616,15 +645,15 @@ config MACH_KOR_EARJACK_WR
 	help
 	  Say Y to enable earjack-noise workaround at charging
 
-config SW_SELF_DISCHARGING
-	bool "enable sw_self_discharging"
-	default n
-	help
-	  Say Y to enable CONFIG_SW_SELF_DISCHARGING
-
 config BATTERY_AGE_FORECAST
 	tristate "battery age forecast"
 	default n
 	depends on BATTERY_SWELLING
 	help
 	  Say Y to use calc time to full function.
+
+config BATTERY_NOTIFIER
+	bool "battery notifier"
+	default n
+	help
+	  Say Y to enable battery notifier

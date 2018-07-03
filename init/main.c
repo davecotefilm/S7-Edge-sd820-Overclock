@@ -164,6 +164,8 @@ int boot_mode_security;
 EXPORT_SYMBOL(boot_mode_security);
 #endif
 
+int ddr_size_6g;
+
 static int __init set_reset_devices(char *str)
 {
 	reset_devices = 1;
@@ -475,6 +477,13 @@ static int __init do_early_param(char *param, char *val, const char *unused)
 			}
 	}
 #endif
+	if ((strncmp(param, "androidboot.ddr_size", 27) == 0)) {
+		pr_warn("val = %d\n",*val);
+	        if ((strncmp(val, "6", 2) == 0)) {
+				pr_info("Ramsize is 6G \n");
+				ddr_size_6g = 1;
+			}
+	}
 
 	return 0;
 }
@@ -541,8 +550,8 @@ static void __init mm_init(void)
 }
 
 #ifdef  CONFIG_TIMA_RKP
-__attribute__((section(".rkp.bitmap"))) u8 rkp_pgt_bitmap_arr[0x20000] = {0};
-__attribute__((section(".rkp.dblmap"))) u8 rkp_map_bitmap_arr[0x20000] = {0};
+__attribute__((section(".rkp.bitmap"))) u8 rkp_pgt_bitmap_arr[0x30000] = {0};
+__attribute__((section(".rkp.dblmap"))) u8 rkp_map_bitmap_arr[0x30000] = {0};
 u8 rkp_started = 0;
 static void rkp_init(void)
 {
@@ -560,8 +569,11 @@ static void rkp_init(void)
 	init._etext = (u64) _etext;
 	init._srodata = (u64) __start_rodata;
 	init._erodata =(u64) __end_rodata;
-	init.large_memory = 0;
-	rkp_call(RKP_INIT, (u64)&init, 0, 0, 0, 0);
+	if (memstart_addr == 0x40000000)
+		init.large_memory = 1;
+	else
+		init.large_memory = 0;
+	rkp_call(RKP_INIT, (u64)&init, (u64)memstart_addr, (u64)max_pfn, 0, 0);
 	rkp_started = 1;
 	return;
 }
@@ -749,6 +761,12 @@ asmlinkage __visible void __init start_kernel(void)
 	thread_info_cache_init();
 #ifdef CONFIG_TIMA_RKP
 	rkp_init();
+#ifdef CONFIG_RKP_CFP_ROPP
+	rkp_call(CFP_ROPP_INIT, 0, 0, 0, 0, 0);
+#endif
+#ifdef CONFIG_RKP_CFP_JOPP
+	rkp_call(CFP_JOPP_INIT, 0, 0, 0, 0, 0);
+#endif
 #ifdef CONFIG_RKP_KDP
 	rkp_cred_enable = 1;
 #endif /*CONFIG_RKP_KDP*/
@@ -780,6 +798,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	check_bugs();
 
+	acpi_subsystem_init();
 	sfi_init_late();
 
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {

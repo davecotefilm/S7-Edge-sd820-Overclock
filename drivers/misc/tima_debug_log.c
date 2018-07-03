@@ -55,20 +55,37 @@ ssize_t	tima_read(struct file *filep, char __user *buf, size_t size, loff_t *off
 		printk(KERN_ERR"Extra read\n");
 		return -EINVAL;
 	}
-	if( !strcmp(filep->f_path.dentry->d_iname, "tima_debug_log"))
+	if( !strcmp(filep->f_path.dentry->d_iname, "tima_debug_log")) {
 		tima_log_addr = tima_debug_log_addr;
-#ifdef CONFIG_TIMA_RKP
-	else if( !strcmp(filep->f_path.dentry->d_iname, "tima_debug_rkp_log"))
-		tima_log_addr = tima_debug_rkp_log_addr;
-	else
-		tima_log_addr = tima_secure_rkp_log_addr;
-#endif
-	if (copy_to_user(buf, (const char *)tima_log_addr + (*offset), size)) {
-		printk(KERN_ERR"Copy to user failed\n");
-		return -1;
-	} else {
+		memcpy_fromio(buf, (const char *)tima_log_addr + (*offset), size);
 		*offset += size;
 		return size;
+	}
+#ifdef CONFIG_TIMA_RKP
+	else if( !strcmp(filep->f_path.dentry->d_iname, "tima_debug_rkp_log")) {
+		tima_log_addr = tima_debug_rkp_log_addr;
+		if (copy_to_user(buf, (const char *)tima_log_addr + (*offset), size)) {
+			printk(KERN_ERR"Copy to user failed\n");
+			return -1;
+		} else {
+			*offset += size;
+			return size;
+		}
+	}
+	else if( !strcmp(filep->f_path.dentry->d_iname, "tima_secure_rkp_log")) {
+		tima_log_addr = tima_secure_rkp_log_addr;
+		if (copy_to_user(buf, (const char *)tima_log_addr + (*offset), size)) {
+			printk(KERN_ERR"Copy to user failed\n");
+			return -1;
+		} else {
+			*offset += size;
+			return size;
+		}
+	}
+#endif
+	else {
+		printk(KERN_ERR"NO tima*log\n");
+		return -1;
 	}
 }
 

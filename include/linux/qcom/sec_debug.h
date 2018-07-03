@@ -540,8 +540,78 @@ extern void *kfree_hook(void *p, void *caller);
 #endif
 
 #ifdef CONFIG_USER_RESET_DEBUG
-extern int sec_debug_get_cp_crash_log(char *str);
+
+#ifdef CONFIG_USER_RESET_DEBUG_TEST
+extern void force_thermal_reset(void);
+extern void force_watchdog_bark(void);
 #endif
+
+#define SEC_DEBUG_EX_INFO_SIZE	(0x400)
+
+enum extra_info_dbg_type {
+	DBG_0_L2_ERR = 0,
+	DBG_1_RESERVED,
+	DBG_2_RESERVED,
+	DBG_3_RESERVED,
+	DBG_4_RESERVED,
+	DBG_5_RESERVED,
+	DBG_MAX,
+};
+
+struct sec_debug_reset_ex_info {
+	u32 serial_id;
+	u64 ktime;
+	struct task_struct *tsk;
+	char bug_buf[64];
+	char panic_buf[64];
+	u64 fault_addr[6];
+	char pc[64];
+	char lr[64];
+	char dbg0[96];
+	char backtrace[600];
+}; // size SEC_DEBUG_EX_INFO_SIZE
+
+enum param_debug_header_type {
+	PDH_TYPE_SUMMARY=0,
+	PDH_TYPE_KLOG,
+	PDH_TYPE_CHECK_STORE,
+	PDH_TYPE_MAX,
+};
+enum param_debug_header_state {
+	PDH_STATE_INIT=0,
+	PDH_STATE_VALID,
+	PDH_STATE_INVALID,
+	PDH_STATE_MAX,
+};
+
+struct param_debug_header {
+	uint32_t write_times;
+	uint32_t read_times;
+	uint32_t ap_klog_idx;
+	uint32_t summary_size;
+};
+
+extern struct sec_debug_reset_ex_info *sec_debug_reset_ex_info;
+extern int sec_debug_get_cp_crash_log(char *str);
+extern void _sec_debug_store_backtrace(unsigned long where);
+extern void sec_debug_store_bug_string(const char *fmt, ...);
+extern void sec_debug_store_additional_dbg(enum extra_info_dbg_type type, unsigned int value, const char *fmt, ...);
+
+static inline void sec_debug_store_pte(unsigned long addr, int idx)
+{
+	if (sec_debug_reset_ex_info) {
+		if(idx == 0)
+			memset(sec_debug_reset_ex_info->fault_addr, 0,
+				sizeof(sec_debug_reset_ex_info->fault_addr));
+
+		sec_debug_reset_ex_info->fault_addr[idx] = addr;
+	}
+}
+#else // CONFIG_USER_RESET_DEBUG
+static inline void sec_debug_store_pte(unsigned long addr, int idx)
+{
+}
+#endif // CONFIG_USER_RESET_DEBUG
 
 #ifdef CONFIG_TOUCHSCREEN_DUMP_MODE
 struct tsp_dump_callbacks {

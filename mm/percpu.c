@@ -1144,6 +1144,7 @@ static void pcpu_balance_workfn(struct work_struct *work)
 		pcpu_destroy_chunk(chunk);
 	}
 
+
 	/* service chunks which requested async area map extension */
 	do {
 		int new_alloc = 0;

@@ -59,6 +59,10 @@ bool wakeup_by_key(void) {
 }
 EXPORT_SYMBOL(wakeup_by_key);
 
+#if defined(CONFIG_FB) && defined(CONFIG_SENSORS_VFS7XXX)
+extern void vfsspi_fp_homekey_ev(void);
+#endif
+
 struct device *sec_key;
 EXPORT_SYMBOL(sec_key);
 
@@ -384,6 +388,10 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 			input_event(input, type, button->code, button->value);
 	} else {
 		input_event(input, type, button->code, !!state);
+#if defined(CONFIG_FB) && defined(CONFIG_SENSORS_VFS7XXX)
+		if(button->code == KEY_HOMEPAGE && !!state == 1)
+			vfsspi_fp_homekey_ev();
+#endif
 	}
 	input_sync(input);
 
@@ -782,6 +790,12 @@ static ssize_t sysfs_hall_detect_show(struct device *dev,
 static DEVICE_ATTR(hall_detect, S_IRUGO, sysfs_hall_detect_show, NULL);
 #endif
 
+#ifdef CONFIG_KEYBOARD_MATRIX
+extern int check_short_key(void);
+extern int check_short_pkey(void);
+extern int get_vdkey_press(void);
+#endif
+
 static ssize_t sysfs_key_onoff_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -800,6 +814,11 @@ static ssize_t sysfs_key_onoff_show(struct device *dev,
 #if defined(CONFIG_SEC_PM)
 	/* Volume down button tied in with PMIC RESIN. */
 	if (state == 0 && (get_vdkey_press() > 0))
+		state = 1;
+#endif
+
+#ifdef CONFIG_KEYBOARD_MATRIX
+	if(check_short_key() || check_short_pkey() || get_vdkey_press())
 		state = 1;
 #endif
 
@@ -845,6 +864,59 @@ out:
 }
 
 static DEVICE_ATTR(wakeup_keys, 0220, NULL, wakeup_enable);
+
+static ssize_t keycode_pressed_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
+	int index;
+	int state, keycode;
+	char *buff;
+	char tmp[7] = {0};
+	ssize_t count;
+	int len = (ddata->pdata->nbuttons + 2) * 7 + 2;
+
+	buff = kmalloc(len, GFP_KERNEL);
+	if (!buff) {
+		pr_err("%s %s: failed to mem alloc\n", SECLOG, __func__);
+		return snprintf(buf, 5, "NG\n");
+	}
+
+	for (index = 0; index < ddata->pdata->nbuttons; index++) {
+		struct gpio_button_data *button;
+
+		button = &ddata->data[index];
+		state = (__gpio_get_value(button->button->gpio) ? 1 : 0)
+			^ button->button->active_low;
+		keycode = button->button->code;
+		if (index == 0) {
+			snprintf(buff, 7, "%d:%d", keycode, state);
+		} else {
+			snprintf(tmp, 7, ",%d:%d", keycode, state);
+			strncat(buff, tmp, 7);
+		}
+	}
+
+#if defined(CONFIG_SEC_PM)
+	state = get_pkey_press();
+	keycode = KEY_POWER;
+	snprintf(tmp, 7, ",%d:%d", keycode, state);
+	strncat(buff, tmp, 7);
+
+	state = get_vdkey_press();
+	keycode = KEY_VOLUMEDOWN;
+	snprintf(tmp, 7, ",%d:%d", keycode, state);
+	strncat(buff, tmp, 7);
+#endif
+
+	pr_info("%s %s: %s\n", SECLOG, __func__, buff);
+	count = snprintf(buf, strnlen(buff, len - 2) + 2, "%s\n", buff);
+
+	kfree(buff);
+
+	return count;
+}
+static DEVICE_ATTR(keycode_pressed, 0444 , keycode_pressed_show, NULL);
 
 /*
  * Handlers for alternative sources of platform_data
@@ -968,7 +1040,9 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	size_t size;
 	int i, error;
 	int wakeup = 0;
+#if defined(CONFIG_SENSORS_HALL)
 	int ret;
+#endif
 	struct pinctrl_state *set_state;
 
 	if (!pdata) {
@@ -1076,6 +1150,12 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	if (error < 0) {
 		pr_err("Failed to create device file(%s), error: %d\n",
 				dev_attr_wakeup_keys.attr.name, error);
+	}
+
+	error = device_create_file(sec_key, &dev_attr_keycode_pressed);
+	if (error < 0) {
+		pr_err("Failed to create device file(%s), error: %d\n",
+				dev_attr_keycode_pressed.attr.name, error);
 	}
 	dev_set_drvdata(sec_key, ddata);
 

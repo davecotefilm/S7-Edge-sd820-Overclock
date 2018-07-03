@@ -99,7 +99,7 @@ static int stb6000_set_params(struct dvb_frontend *fe)
 	if (bandwidth > 31)
 		bandwidth = 31;
 
-	if ((freq_mhz > 949) && (freq_mhz < 2342)) {
+	if ((freq_mhz > 949) && (freq_mhz < 2151)) {
 		buf[0] = 0x01;
 		buf[1] = 0xac;
 		if (freq_mhz < 1950)
@@ -190,7 +190,7 @@ static struct dvb_tuner_ops stb6000_tuner_ops = {
 	.info = {
 		.name = "ST STB6000",
 		.frequency_min = 950000,
-		.frequency_max = 2342400
+		.frequency_max = 2150000
 	},
 	.release = stb6000_release,
 	.sleep = stb6000_sleep,

@@ -26,7 +26,7 @@
 #define FELICA_EPC_BASEMINOR  0
 #define FELICA_EPC_MINOR 0
 #define FELICA_EPC_MINOR_COUNT 1
-#define CONFIG_NFC_EDC_TUNING  1
+/* #define CONFIG_NFC_EDC_TUNING  1 */
 /* just to keep the notation same as of previous models */
 #define FELICA_EPC_NAME "felica_ant"
 
@@ -49,6 +49,8 @@ static int bu80003gul_i2c_probe(struct i2c_client *client,
 static int bu80003gul_i2c_remove(struct i2c_client *client);
 /* static void bu80003gul_i2c_exit(void); */
 
+#ifdef CONFIG_NFC_EDC_TUNING
 static int ant_tune_req = 0;
+#endif
 
 #endif /* _BU80003GUL_H */

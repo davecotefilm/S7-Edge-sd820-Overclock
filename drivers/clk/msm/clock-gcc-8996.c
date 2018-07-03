@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -124,6 +124,20 @@ DEFINE_CLK_RPM_SMD_XO_BUFFER_PINCTRL(rf_clk2_pin, rf_clk2_pin_ao,
 static DEFINE_CLK_VOTER(scm_ce1_clk, &ce1_clk.c, 85710000);
 static DEFINE_CLK_VOTER(snoc_msmbus_clk, &snoc_clk.c, LONG_MAX);
 static DEFINE_CLK_VOTER(snoc_msmbus_a_clk, &snoc_a_clk.c, LONG_MAX);
+
+#ifdef CONFIG_MSM_BUSPM_DEV 
+//ALRAN 
+static DEFINE_CLK_VOTER(pnoc_buspm_clk, &pnoc_clk.c, LONG_MAX); 
+static DEFINE_CLK_VOTER(snoc_buspm_clk, &snoc_clk.c, LONG_MAX); 
+static DEFINE_CLK_VOTER(cnoc_buspm_clk, &cnoc_clk.c, LONG_MAX); 
+ 
+static DEFINE_CLK_VOTER(pnoc_buspm_a_clk, &pnoc_a_clk.c, LONG_MAX); 
+static DEFINE_CLK_VOTER(snoc_buspm_a_clk, &snoc_a_clk.c, LONG_MAX); 
+static DEFINE_CLK_VOTER(cnoc_buspm_a_clk, &cnoc_a_clk.c, LONG_MAX); 
+ 
+static DEFINE_CLK_VOTER(bimc_buspm_clk, &bimc_clk.c, LONG_MAX); 
+static DEFINE_CLK_VOTER(bimc_buspm_a_clk, &bimc_a_clk.c, LONG_MAX); 
+#endif 
 
 static unsigned int soft_vote_gpll0;
 
@@ -1342,9 +1356,11 @@ static struct rcg_clk pdm2_clk_src = {
 	},
 };
 
-/* Frequency table might change later */
 static struct clk_freq_tbl ftbl_qspi_ser_clk_src[] = {
-	F( 192000000,  gpll4_out_main,    2,    0,     0),
+	F(  75000000,  gpll0_out_main,    8,    0,     0),
+	F( 150000000,  gpll0_out_main,    4,    0,     0),
+	F( 256000000,  gpll4_out_main,  1.5,    0,     0),
+	F( 300000000,  gpll0_out_main,    2,    0,     0),
 	F_END
 };
 
@@ -2769,6 +2785,7 @@ static struct gate_clk gcc_usb3_phy_pipe_clk = {
 
 static struct branch_clk gcc_usb20_master_clk = {
 	.cbcr_reg = GCC_USB20_MASTER_CBCR,
+	.bcr_reg = GCC_USB_20_BCR,
 	.has_sibling = 0,
 	.base = &virt_base,
 	.c = {
@@ -3321,6 +3338,18 @@ static struct mux_clk gcc_debug_mux_v2 = {
 };
 
 static struct clk_lookup msm_clocks_rpm_8996[] = {
+#ifdef CONFIG_MSM_BUSPM_DEV 
+//ALRAN 
+ CLK_LOOKUP("snoc_clk", snoc_buspm_clk.c, "msm-buspm"), 
+ CLK_LOOKUP("pnoc_clk", pnoc_buspm_clk.c, "msm-buspm"), 
+ CLK_LOOKUP("cnoc_clk", cnoc_buspm_clk.c, "msm-buspm"), 
+ CLK_LOOKUP("bimc_clk", bimc_buspm_clk.c, "msm-buspm"), 
+ 
+ CLK_LOOKUP("snoc_a_clk", snoc_buspm_a_clk.c, "msm-buspm"), 
+ CLK_LOOKUP("pnoc_a_clk", pnoc_buspm_a_clk.c, "msm-buspm"), 
+ CLK_LOOKUP("cnoc_a_clk", cnoc_buspm_a_clk.c, "msm-buspm"), 
+ CLK_LOOKUP("bimc_a_clk", bimc_buspm_a_clk.c, "msm-buspm"), 
+#endif 
 	CLK_LIST(cxo_clk_src),
 	CLK_LIST(pnoc_a_clk),
 	CLK_LIST(pnoc_clk),
@@ -3644,14 +3673,6 @@ static int msm_gcc_8996_probe(struct platform_device *pdev)
 	regval = readl_relaxed(virt_base + GCC_APCS_CLOCK_BRANCH_ENA_VOTE);
 	regval |= BIT(21);
 	writel_relaxed(regval, virt_base + GCC_APCS_CLOCK_BRANCH_ENA_VOTE);
-
-	/*
-	 * Set the HMSS_AHB_CLK_SLEEP_ENA bit to allow the hmss_ahb_clk to be
-	 * turned off by hardware during certain apps low power modes.
-	 */
-	regval = readl_relaxed(virt_base + GCC_APCS_CLOCK_SLEEP_ENA_VOTE);
-	regval |= BIT(21);
-	writel_relaxed(regval, virt_base + GCC_APCS_CLOCK_SLEEP_ENA_VOTE);
 
 	vdd_dig.vdd_uv[1] = RPM_REGULATOR_CORNER_SVS_KRAIT;
 	vdd_dig.regulator[0] = devm_regulator_get(&pdev->dev, "vdd_dig");

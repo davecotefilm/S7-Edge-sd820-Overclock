@@ -386,7 +386,7 @@ static struct dvb_tuner_ops stv6110_tuner_ops = {
 	.info = {
 		.name = "ST STV6110",
 		.frequency_min = 950000,
-		.frequency_max = 2342400,
+		.frequency_max = 2150000,
 		.frequency_step = 1000,
 	},
 	.init = stv6110_init,

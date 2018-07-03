@@ -41,6 +41,13 @@
 #include <linux/log2.h>
 #include <linux/configfs.h>
 
+/* FUNCTION_SUSPEND: suspend options from usb 3.0 spec Table 9-7 */
+#define FUNC_SUSPEND_OPT_SUSP_MASK BIT(0)
+#define FUNC_SUSPEND_OPT_RW_EN_MASK BIT(1)
+
+#define FUNC_WAKEUP_CAPABLE_SHIFT  0
+#define FUNC_WAKEUP_ENABLE_SHIFT   1
+
 /*
  * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
  * wish to delay the data/status stages of the control transfer till they
@@ -512,6 +519,14 @@ struct usb_composite_dev {
 
 	/* protects deactivations and delayed_status counts*/
 	spinlock_t			lock;
+	
+	#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+	/* used by enable_store function of android.c
+	 * to avoid signalling switch changes
+	 */
+	bool				mute_switch;
+	bool				force_disconnect;
+	#endif
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);

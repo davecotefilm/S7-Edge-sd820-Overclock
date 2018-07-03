@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -383,7 +383,7 @@ static void lmh_poll(struct work_struct *work)
 		goto poll_exit;
 	} else {
 		queue_delayed_work(lmh_dat->poll_wq, &lmh_dat->poll_work,
-			msecs_to_jiffies(lmh_poll_interval));
+			msecs_to_jiffies(lmh_get_poll_interval()));
 	}
 
 poll_exit:
@@ -413,12 +413,6 @@ static void lmh_trim_error(void)
 	return;
 }
 
-static irqreturn_t lmh_handle_isr(int irq, void *dev_id)
-{
-	disable_irq_nosync(irq);
-	return IRQ_WAKE_THREAD;
-}
-
 static irqreturn_t lmh_isr_thread(int irq, void *data)
 {
 	struct lmh_driver_data *lmh_dat = data;
@@ -426,6 +420,7 @@ static irqreturn_t lmh_isr_thread(int irq, void *data)
 	pr_debug("LMH Interrupt triggered\n");
 	trace_lmh_event_call("Lmh Interrupt");
 
+	disable_irq_nosync(irq);
 	down_write(&lmh_sensor_access);
 	if (lmh_dat->intr_state != LMH_ISR_MONITOR) {
 		pr_err("Invalid software state\n");
@@ -444,18 +439,11 @@ static irqreturn_t lmh_isr_thread(int irq, void *data)
 			goto decide_next_action;
 		}
 	}
-	lmh_read_and_update(lmh_dat);
-	if (!lmh_dat->intr_status_val) {
-		pr_debug("LMH not throttling. Enabling interrupt\n");
-		lmh_dat->intr_state = LMH_ISR_MONITOR;
-		trace_lmh_event_call("Lmh Zero throttle Interrupt Clear");
-		goto decide_next_action;
-	}
 
 decide_next_action:
 	if (lmh_dat->intr_state == LMH_ISR_POLLING)
 		queue_delayed_work(lmh_dat->poll_wq, &lmh_dat->poll_work,
-			msecs_to_jiffies(lmh_poll_interval));
+			msecs_to_jiffies(lmh_get_poll_interval()));
 	else
 		enable_irq(lmh_dat->irq_num);
 
@@ -521,7 +509,7 @@ static int lmh_get_sensor_devicetree(struct platform_device *pdev)
 		goto dev_exit;
 	}
 
-	ret = request_threaded_irq(lmh_data->irq_num, lmh_handle_isr,
+	ret = request_threaded_irq(lmh_data->irq_num, NULL,
 		lmh_isr_thread, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 		LMH_INTERRUPT, lmh_data);
 	if (ret) {
@@ -709,7 +697,8 @@ static int lmh_get_sensor_list(void)
 	} while (next < size);
 
 get_exit:
-	dma_free_attrs(&dev, size, payload, payload_phys, &attrs);
+	dma_free_attrs(&dev, PAGE_ALIGN(sizeof(struct lmh_sensor_packet)),
+		payload, payload_phys, &attrs);
 	return ret;
 }
 

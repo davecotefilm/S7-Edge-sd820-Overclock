@@ -317,7 +317,7 @@ static struct dvb_tuner_ops ts2020_tuner_ops = {
 	.info = {
 		.name = "TS2020",
 		.frequency_min = 950000,
-		.frequency_max = 2342400
+		.frequency_max = 2150000
 	},
 	.init = ts2020_init,
 	.release = ts2020_release,

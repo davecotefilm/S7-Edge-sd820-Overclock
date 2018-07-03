@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, 2015-2016 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -182,21 +182,14 @@ static int csr_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct coresight_desc *desc;
 
-	if (coresight_fuse_access_disabled())
-		return -EPERM;
-
-	if (pdev->dev.of_node) {
-		pdata = of_get_coresight_platform_data(dev, pdev->dev.of_node);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-		pdev->dev.platform_data = pdata;
-	}
+	pdata = of_get_coresight_platform_data(dev, pdev->dev.of_node);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
+	pdev->dev.platform_data = pdata;
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
-	/* Store the driver data pointer for use in exported functions */
-	csrdrvdata = drvdata;
 	drvdata->dev = &pdev->dev;
 	platform_set_drvdata(pdev, drvdata);
 
@@ -209,12 +202,10 @@ static int csr_probe(struct platform_device *pdev)
 	if (!drvdata->base)
 		return -ENOMEM;
 
-	if (pdev->dev.of_node) {
-		ret = of_property_read_u32(pdev->dev.of_node, "qcom,blk-size",
-					   &drvdata->blksize);
-		if (ret)
-			drvdata->blksize = BLKSIZE_256;
-	}
+	ret = of_property_read_u32(pdev->dev.of_node, "qcom,blk-size",
+			&drvdata->blksize);
+	if (ret)
+		drvdata->blksize = BLKSIZE_256;
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
@@ -226,6 +217,9 @@ static int csr_probe(struct platform_device *pdev)
 	drvdata->csdev = coresight_register(desc);
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
+
+	/* Store the driver data pointer for use in exported functions */
+	csrdrvdata = drvdata;
 
 	dev_info(dev, "CSR initialized\n");
 	return 0;

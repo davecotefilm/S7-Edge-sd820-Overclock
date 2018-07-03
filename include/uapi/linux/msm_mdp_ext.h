@@ -103,6 +103,18 @@ DESTINATION SCALER FLAG CONFIGURATION
  */
 #define MDP_DESTSCALER_ENHANCER_UPDATE	0x4
 
+/*
+ * layer will work in multirect mode, where single hardware should
+ * fetch multiple rectangles with a single hardware
+ */
+#define MDP_LAYER_MULTIRECT_ENABLE		0x1000
+
+/*
+ * if flag present and multirect is enabled, multirect will work in parallel
+ * fetch mode, otherwise it will default to serial fetch mode.
+ */
+#define MDP_LAYER_MULTIRECT_PARALLEL_MODE	0x2000
+
 /**********************************************************************
 VALIDATE/COMMIT FLAG CONFIGURATION
 **********************************************************************/
@@ -127,6 +139,8 @@ VALIDATE/COMMIT FLAG CONFIGURATION
 #define MDP_COMMIT_SYNC_FENCE_WAIT		0x04
 
 #define MDP_COMMIT_VERSION_1_0		0x00010000
+
+#define OUT_LAYER_COLOR_SPACE
 
 /**********************************************************************
 Configuration structures
@@ -320,20 +334,11 @@ struct mdp_output_layer {
 	/* Buffer attached with output layer. Device uses it for commit call */
 	struct mdp_layer_buffer		buffer;
 
+	/* color space of the destination */
+	enum mdp_color_space		color_space;
+
 	/* 32bits reserved value for future usage. */
-	uint32_t			reserved[6];
-};
-
-/* Enable Deterministic Frame Rate Control (FRC) */
-#define MDP_VIDEO_FRC_ENABLE (1 << 0)
-
-struct mdp_frc_info {
-	/* flags to control FRC feature */
-	uint32_t flags;
-	/* video frame count per frame */
-	uint32_t frame_cnt;
-	/* video timestamp per frame in millisecond unit */
-	int64_t timestamp;
+	uint32_t			reserved[5];
 };
 
 /*
@@ -437,8 +442,11 @@ struct mdp_layer_commit_v1 {
 	 */
 	int			retire_fence;
 
-	/* FRC info per device which contains frame count and timestamp */
-	struct mdp_frc_info __user *frc_info;
+	/* MULTI_RESOLUTION
+	 * 0 : WQHD, 1 : FHD, 2 : HD
+	 */
+	uint32_t		dsu_mode;
+
 	/*
 	 * Scaler data and control for setting up destination scaler.
 	 * A userspace pointer that points to a list of

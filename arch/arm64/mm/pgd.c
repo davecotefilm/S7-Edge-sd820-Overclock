@@ -34,7 +34,6 @@
 extern u8 rkp_started;
 #endif /* CONFIG_TIMA_RKP */
 
-#define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
 
 static struct kmem_cache *pgd_cache;
 
@@ -42,9 +41,9 @@ static struct kmem_cache *pgd_cache;
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	if (PGD_SIZE == PAGE_SIZE)
-		return (pgd_t *)get_zeroed_page(GFP_KERNEL);
+		return (pgd_t *)__get_free_page(PGALLOC_GFP);
 	else
-		return kmem_cache_zalloc(pgd_cache, GFP_KERNEL);
+		return kmem_cache_alloc(pgd_cache, PGALLOC_GFP);
 }
 #else
 pgd_t *pgd_alloc(struct mm_struct *mm)
@@ -53,9 +52,9 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	ret = (pgd_t *) rkp_ro_alloc();
 	if (!ret) {
 		if (PGD_SIZE == PAGE_SIZE)
-			ret = (pgd_t *)get_zeroed_page(GFP_KERNEL);
+			ret = (pgd_t *)__get_free_page(PGALLOC_GFP);
 		else
-			ret = kmem_cache_zalloc(pgd_cache, GFP_KERNEL);
+			ret = kmem_cache_alloc(pgd_cache, PGALLOC_GFP);
 	}
 	if (rkp_started)
 		rkp_call(RKP_PGD_NEW, (unsigned long)ret, 0, 0, 0, 0);

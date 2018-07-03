@@ -61,9 +61,7 @@
 #include <linux/irq.h>
 #include <linux/preempt.h>
 #endif
-#ifdef CONFIG_SEC_DEBUG_SEC_WDOG_BITE
 #include <soc/qcom/scm.h>
-#endif
 
 #if defined(CONFIG_ARCH_MSM8974) || defined(CONFIG_ARCH_MSM8226)
 #include <linux/regulator/consumer.h>
@@ -79,7 +77,16 @@
 #include <asm/compiler.h>
 #include <linux/init.h>
 
+#define CONFIG_SEC_DEBUG_CANCERIZER
+
+#ifdef CONFIG_SEC_DEBUG_CANCERIZER
+#include <linux/random.h>
+#include <linux/kthread.h>
+#endif
+
 #ifdef CONFIG_USER_RESET_DEBUG
+#include <linux/sec_param.h>
+
 enum user_upload_cause_t{
 	USER_UPLOAD_CAUSE_SMPL = 1,		/* RESET_REASON_SMPL */
 	USER_UPLOAD_CAUSE_WTSR,			/* RESET_REASON_WTSR */
@@ -111,13 +118,62 @@ enum sec_debug_upload_cause_t {
 	UPLOAD_CAUSE_PERIPHERAL_ERR = 0x000000FF,
 	UPLOAD_CAUSE_NON_SECURE_WDOG_BARK = 0x00000DBA,
 	UPLOAD_CAUSE_NON_SECURE_WDOG_BITE = 0x00000DBE,
-    UPLOAD_CAUSE_POWER_THERMAL_RESET = 0x00000075,
+	UPLOAD_CAUSE_POWER_THERMAL_RESET = 0x00000075,
 	UPLOAD_CAUSE_SECURE_WDOG_BITE = 0x00005DBE,
 	UPLOAD_CAUSE_BUS_HANG = 0x000000B5,
 };
 
+#ifdef CONFIG_SEC_DEBUG_CANCERIZER
+#define SZ_TEST		(0x4000 * PAGE_SIZE)
+#define DEGREE		26
+
+#define POWEROF16	0xFFFF
+#define POWEROF20	0xFFFFF
+#define POWEROF24	0xFFFFFF
+#define POWEROF26	0x3FFFFFF
+#define POWEROF28	0xFFFFFFF
+#define POWEROF29	0x1FFFFFFF
+#define POWEROF31	0x7FFFFFFF
+#define POWEROF32	0xFFFFFFFF
+
+#define POLY_DEGREE16	0xB400
+#define POLY_DEGREE20	0x90000
+#define POLY_DEGREE24	0xE10000
+#define POLY_DEGREE26	0x2000023
+#define POLY_DEGREE28	0x9000000
+#define POLY_DEGREE29	0x14000000
+#define POLY_DEGREE31	0x48000000
+#define POLY_DEGREE32	0x80200003
+
+#define NR_CANCERIZERD	4
+#define NR_INFINITE	0x7FFFFFFF
+/**
+ * cancerizer_mon_ctx
+ */
+struct cancerizer_mon_ctx {
+	atomic_t		nr_test;
+	/* thread monitoring cancerizer test sessions
+	 */
+	struct task_struct	*self;
+	wait_queue_head_t	mwq;
+	/* threads conducting the actual test
+	 */
+	struct task_struct	*td[NR_CANCERIZERD];
+	wait_queue_head_t	dwq;
+	atomic_t		nr_running;
+	struct completion	done;
+} cmctx;
+#endif
 
 struct sec_debug_log *secdbg_log;
+
+struct param_debug_header *summary_info = NULL;
+char *summary_buf = NULL;
+
+struct param_debug_header *klog_info = NULL;
+char *klog_read_buf = NULL;
+char *klog_buf = NULL;
+uint32_t klog_size = 0;
 
 /* enable sec_debug feature */
 static unsigned enable = 1;
@@ -173,6 +229,11 @@ DEFINE_PER_CPU(struct sec_debug_core_t, sec_debug_core_reg);
 DEFINE_PER_CPU(struct sec_debug_mmu_reg_t, sec_debug_mmu_reg);
 DEFINE_PER_CPU(enum sec_debug_upload_cause_t, sec_debug_upload_cause);
 
+#ifdef CONFIG_SEC_DEBUG_CANCERIZER
+static int run_cancerizer_test(const char *val, struct kernel_param *kp);
+module_param_call(cancerizer, run_cancerizer_test, NULL, NULL, 0664);
+MODULE_PARM_DESC(cancerizer, "Crashing Algorithm!!!");
+#endif
 
 /* save last_pet and last_ns with these nice functions */
 void sec_debug_save_last_pet(unsigned long long last_pet)
@@ -417,6 +478,17 @@ static int force_error(const char *val, struct kernel_param *kp)
 	}else if (!strncmp(val, "secdogbite", 10)) {
 		simulate_secure_wdog_bite();
 #endif
+#ifdef CONFIG_USER_RESET_DEBUG_TEST
+	} else if (!strncmp(val, "TP", 2)) {
+		force_thermal_reset();
+	} else if (!strncmp(val, "KP", 2)) {
+		pr_emerg("Generating a data abort exception!\n");
+		*(unsigned int *)0x0 = 0x0;
+	} else if (!strncmp(val, "DP", 2)) {
+		force_watchdog_bark();
+	} else if (!strncmp(val, "WP", 2)) {
+		simulate_secure_wdog_bite();
+#endif
 #ifdef CONFIG_FREE_PAGES_RDONLY
 	}else if (!strncmp(val, "pageRDcheck", 11)) {
 		struct page *page = alloc_pages(GFP_ATOMIC, 0);
@@ -431,6 +503,208 @@ static int force_error(const char *val, struct kernel_param *kp)
 
 	return 0;
 }
+
+#ifdef CONFIG_SEC_DEBUG_CANCERIZER
+/* core algorithm written in asm codes
+ */
+static noinline void cancerizer_core(char *buf, unsigned int *curr_lfsr)
+{
+#ifdef CONFIG_ARM64
+	asm volatile(
+	/* LFSR
+	 */
+	"	ldr	w2, [%1]\n"
+	"	mov	w3, %2\n"
+	"	and	w4, w2, #1\n"
+	"	neg	w4, w4\n"
+	"	and	w4, w3, w4\n"
+	"	eor	w2, w4, w2, lsr #1\n"
+	"	str	w2, [%1]\n"
+	/* pick a bit
+	 */
+	"	lsr	w4, w2, #3\n"
+	"	prfm	pstl1strm, [%0, x4]\n"
+	"	ldrb	w3, [%0, x4]\n"
+	"	and	w4, w2, #7\n"
+	"	mov	w5, #1\n"
+	"	lsl	w5, w5, w4\n"
+	"	and	w5, w3, w5\n"
+	"	lsr	w5, w5, w4\n"
+	/* bit-validation
+	 */
+	"	mov	x6, x5\n"
+	"	mov	x7, x6\n"
+	"	mov	x8, x7\n"
+	"	mov	x9, x8\n"
+	"	mov	x10, x9\n"
+	"	mov	x11, x10\n"
+	"	mov	x12, x11\n"
+	"	mov	x13, x12\n"
+	"	mov	x14, x13\n"
+	"	mov	x15, x14\n"
+	"	mov	x16, x15\n"
+	"	mov	x17, x16\n"
+	"	mov	x18, x17\n"
+	"	udiv	%0, %0, x18\n"
+	/* clear the bit
+	 */
+	"	lsl	w5, w5, w4\n"
+	"	bic	w3, w3, w5\n"
+	"	lsr	w4, w2, #3\n"
+	"	strb	w3, [%0, x4]\n"
+	:
+	: "r" (buf), "r" (curr_lfsr),"M" (POLY_DEGREE29)
+	: "cc", "memory");
+#else
+	char *fmt_str = "[cancerizer] detected system failure!\n";
+	asm volatile(
+	/* LFSR
+	 */
+	"	ldr	r2, [%1]\n"
+	"	mov	r3, %3\n"
+	"	and	r4, r2, #1\n"
+	"	neg	r4, r4\n"
+	"	and	r4, r3, r4\n"
+	"	eor	r2, r4, r2, lsr #1\n"
+	"	str	r2, [%1]\n"
+	/* pick a bit
+	 */
+	"	lsr	r4, r2, #3\n"
+	"	ldrb	r3, [%0, r4]\n"
+	"	and	r4, r2, #7\n"
+	"	mov	r5, #1\n"
+	"	lsl	r5, r5, r4\n"
+	"	and	r5, r3, r5\n"
+	"	lsr	r5, r5, r4\n"
+	/* bit-validation
+	 */
+	"	teq	r5, #1\n"
+	"	mov	r0, %2\n"
+	"	bne	panic\n"
+	/* clear the bit
+	 */
+	"	lsl	r5, r5, r4\n"
+	"	bic	r3, r3, r5\n"
+	"	lsr	r4, r2, #3\n"
+	"	strb	r3, [%0, r4]\n"
+	:
+	: "r" (buf), "r" (curr_lfsr), "r" (fmt_str), "M" (POLY_DEGREE29)
+	: "cc", "memory");
+#endif
+}
+
+static int cancerizer_thread(void *arg)
+{
+	int ret = 0;
+	unsigned int lfsr, loop_cnt = 0;
+	char *ptr_memtest;
+
+	/* D thread should not exit until monitor kicks off.
+	 */
+	wait_event_interruptible(cmctx.dwq, !completion_done(&cmctx.done));
+
+	/* preparation of insanity core loop;
+	 * memory allocation up to 2^DEGREE - 1 bits
+	 */
+	ptr_memtest = vmalloc(SZ_TEST);
+	if (ptr_memtest) {
+		printk(KERN_ERR "%s: Be aware of starting probabilistic crash algorithm on %s\n",
+			 __func__, current->comm);
+
+		memset(ptr_memtest, 0xFF, SZ_TEST);
+
+		/* assign a nonzero seed to LFSR */
+		while ((lfsr = (get_random_int() & POWEROF29)) == 0)
+			;
+
+		while (loop_cnt++ < POWEROF29) {
+			cancerizer_core(ptr_memtest, &lfsr);
+		}
+
+		vfree(ptr_memtest);
+
+		printk(KERN_ERR "%s: Finished the algorithm without any fatal accident on %s..\n",
+			 __func__, current->comm);
+	} else {
+		printk(KERN_ERR "%s: Failed to allocate enough memory\n", __func__);
+		ret = -ENOMEM;
+	}
+
+	if (atomic_dec_and_test(&cmctx.nr_running))
+		complete(&cmctx.done);
+
+	/* The duty of this thread is only limited to a single turn test.
+	 * Wait for being killed by monitor.
+	 */
+	while (!kthread_should_stop()) {
+		msleep_interruptible(10);
+	}
+
+	return ret;
+}
+
+static int cancerizer_monitor(void *arg)
+{
+	int cnt, ret;
+
+	while (!kthread_should_stop()) {
+		/* Monitor should sleep unless nr_test is nonzero.
+		 */		
+		wait_event_interruptible(cmctx.mwq, atomic_read(&cmctx.nr_test));
+
+		/* nr_test can be overrided by an user request.
+		 */
+		do {
+			/* Get ready to check if whole test sessions are done.
+			 */
+			reinit_completion(&cmctx.done);
+
+			/* Multiple threads to run core algorithm.
+			 * The number of threads does not need to be specified here,
+			 * creating threads matching to NR_CPUS is an alternative choice though.
+			 */
+			for (cnt = 0; cnt < NR_CANCERIZERD; cnt++) {
+				cmctx.td[cnt] = kthread_create(cancerizer_thread, NULL,
+							"cancerizerd/%d", cnt);
+				if (IS_ERR(cmctx.td[cnt])) {
+					ret = PTR_ERR(cmctx.td[cnt]);
+					cmctx.td[cnt] = NULL;
+					return ret;
+				}
+				atomic_inc(&cmctx.nr_running);
+			}
+
+			/* Start to run core algorithm.
+			 */
+			for (cnt = 0; cnt < NR_CANCERIZERD; cnt++) {
+				wake_up_process(cmctx.td[cnt]);
+			}
+
+			wait_for_completion_interruptible(&cmctx.done);
+
+			/* Kill the D threads.
+			 */
+			for (cnt = 0; cnt < NR_CANCERIZERD; cnt++) {
+				kthread_stop(cmctx.td[cnt]);
+			}
+		} while (atomic_dec_return(&cmctx.nr_test));
+	}
+
+	return 0;
+}
+
+static int run_cancerizer_test(const char *val, struct kernel_param *kp)
+{	
+	int test_case = (int)simple_strtoul((const char *)val, NULL, 10);
+
+	if (cmctx.self) {
+		atomic_set(&cmctx.nr_test, (test_case == 0) ? NR_INFINITE : test_case);
+		wake_up_process(cmctx.self);
+	}
+	
+	return 0;
+}
+#endif
 
 static long * g_allocated_phys_mem = NULL;
 static long * g_allocated_virt_mem = NULL;
@@ -684,17 +958,63 @@ void sec_peripheral_secure_check_fail(void)
 EXPORT_SYMBOL(sec_peripheral_secure_check_fail);
 #endif
 
+void sec_debug_set_thermal_upload(void)
+{
+	pr_emerg("(%s) set thermal upload cause\n", __func__);
+	sec_debug_set_upload_magic(0x776655ee);                      
+	sec_debug_set_upload_cause(UPLOAD_CAUSE_POWER_THERMAL_RESET);
+}
+EXPORT_SYMBOL(sec_debug_set_thermal_upload);
+
 #ifdef CONFIG_SEC_DEBUG_LOW_LOG
 unsigned sec_debug_get_reset_reason(void)
 {
 return reset_reason;
 }
 #endif
+
+#ifdef CONFIG_USER_RESET_DEBUG
+extern void sec_debug_backtrace(void);
+
+void _sec_debug_store_backtrace(unsigned long where)
+{
+	static int offset = 0;
+	unsigned int max_size = 0;
+
+	if (sec_debug_reset_ex_info) {
+		max_size = sizeof(sec_debug_reset_ex_info->backtrace);
+
+		if (max_size <= offset)
+			return;
+
+		if (offset)
+			offset += snprintf(sec_debug_reset_ex_info->backtrace+offset,
+					 max_size-offset, " : ");
+
+		offset += snprintf(sec_debug_reset_ex_info->backtrace+offset, max_size-offset,
+					"%pS", (void *)where);
+	}
+}
+
+static inline void sec_debug_store_backtrace(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	sec_debug_backtrace();
+	local_irq_restore(flags);
+}
+#endif
+
 static int sec_debug_panic_handler(struct notifier_block *nb,
 		unsigned long l, void *buf)
 {
 	unsigned int len, i;
 	emerg_pet_watchdog();//CTC-should be modify
+
+#ifdef CONFIG_USER_RESET_DEBUG
+	sec_debug_store_backtrace();
+#endif
 	sec_debug_set_upload_magic(0x776655ee);
 
 	len = strnlen(buf, 80);
@@ -727,8 +1047,11 @@ static int sec_debug_panic_handler(struct notifier_block *nb,
 #ifdef CONFIG_SEC_DEBUG_LOW_LOG
 		sec_debug_hw_reset();
 #endif
-		return -EPERM;
-	}	
+		/* SEC will get reset_summary.html in debug low.
+		 * reset_summary.html need more information about abnormal reset or kernel panic.
+		 * So we skip as below*/
+		//return -EPERM;
+	}
 
 /* enable after SSR feature
 	ssr_panic_handler_for_sec_dbg();
@@ -749,11 +1072,8 @@ static int sec_debug_panic_handler(struct notifier_block *nb,
 
 void sec_debug_prepare_for_wdog_bark_reset(void)
 {
-    if(sec_debug_is_enabled())
-    {
         sec_debug_set_upload_magic(0x776655ee);
         sec_debug_set_upload_cause(UPLOAD_CAUSE_NON_SECURE_WDOG_BARK);
-    }
 }
 
 #if defined(CONFIG_TOUCHSCREEN_DUMP_MODE)
@@ -970,10 +1290,653 @@ static int __init sec_dt_addr_init(void)
 	return 0;
 }
 
+#define SCM_WDOG_DEBUG_BOOT_PART 0x9
+void sec_do_bypass_sdi_execution_in_low(void)
+{
+	int ret;
+	struct scm_desc desc = {
+		.args[0] = 1,
+		.args[1] = 0,
+		.arginfo = SCM_ARGS(2),
+	};
+
+	/* Needed to bypass debug image on some chips */
+	if (!is_scm_armv8())
+		ret = scm_call_atomic2(SCM_SVC_BOOT,
+				SCM_WDOG_DEBUG_BOOT_PART, 1, 0);
+	else
+		ret = scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_BOOT,
+					SCM_WDOG_DEBUG_BOOT_PART), &desc);
+	if (ret)
+		pr_err("Failed to disable wdog debug: %d\n", ret);
+
+}
+
+#ifdef CONFIG_USER_RESET_DEBUG
+static int set_reset_reason_proc_show(struct seq_file *m, void *v)
+{
+	if (reset_reason == USER_UPLOAD_CAUSE_SMPL)
+		seq_printf(m, "SPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_WTSR)
+		seq_printf(m, "WPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_WATCHDOG)
+		seq_printf(m, "DPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_PANIC)
+		seq_printf(m, "KPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_MANUAL_RESET)
+		seq_printf(m, "MPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_POWER_RESET)
+		seq_printf(m, "PPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_REBOOT)
+		seq_printf(m, "RPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_BOOTLOADER_REBOOT)
+		seq_printf(m, "BPON\n");
+	else if (reset_reason == USER_UPLOAD_CAUSE_THERMAL)
+		seq_printf(m, "TPON\n");
+	else
+		seq_printf(m, "NPON\n");
+
+	return 0;
+}
+
+static int sec_reset_reason_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, set_reset_reason_proc_show, NULL);
+}
+
+static const struct file_operations sec_reset_reason_proc_fops = {
+	.open = sec_reset_reason_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static phys_addr_t sec_debug_reset_ex_info_paddr;
+static unsigned sec_debug_reset_ex_info_size;
+struct sec_debug_reset_ex_info *sec_debug_reset_ex_info;
+
+static int set_reset_extra_info_proc_show(struct seq_file *m, void *v)
+{
+	char buf[SEC_DEBUG_EX_INFO_SIZE] = {0,};
+	int offset = 0;
+	char sub_buf[(SEC_DEBUG_EX_INFO_SIZE>>1)] = {0,};
+	int sub_offset = 0;
+	unsigned long rem_nsec;
+	u64 ts_nsec;
+	struct sec_debug_reset_ex_info *info = NULL;
+
+	if (reset_reason == USER_UPLOAD_CAUSE_PANIC) {
+
+	/* store panic extra info
+		"KTIME":""	: kernel time
+		"FAULT":""	: pgd,va,*pgd,*pud,*pmd,*pte
+		"BUG":""	: bug msg
+		"PANIC":""	: panic buffer msg
+		"PC":""		: pc val
+		"LR":""		: link register val
+		"STACK":""	: backtrace
+		"CHIPID":""	: CPU Serial Number
+		"DBG0":""	: Debugging Option 0
+		"DBG1":""	: Debugging Option 1
+		"DBG2":""	: Debugging Option 2
+		"DBG3":""	: Debugging Option 3
+		"DBG4":""	: Debugging Option 4
+		"DBG5":""	: Debugging Option 5
+	 */
+
+		info = kmalloc(sizeof(struct sec_debug_reset_ex_info), GFP_KERNEL);
+		if (!info) {
+			pr_err("%s : fail - kmalloc\n", __func__);
+			goto out;
+		}
+
+		if (!sec_get_param(param_index_reset_ex_info, info)) {
+			pr_err("%s : fail - get param!!\n", __func__);
+			goto out;
+		}
+
+		ts_nsec = info->ktime;
+		rem_nsec = do_div(ts_nsec, 1000000000);
+
+		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+			"\"KTIME\":\"%lu.%06lu\",\n", (unsigned long)ts_nsec, rem_nsec / 1000);
+		
+		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+			"\"FAULT\":\"pgd=%016llx,VA=%016llx,*pgd=%016llx,*pud=%016llx,*pmd=%016llx,*pte=%016llx\",\n",
+			info->fault_addr[0],info->fault_addr[1],info->fault_addr[2],
+			info->fault_addr[3],info->fault_addr[4],info->fault_addr[5]);
+
+		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+			"\"BUG\":\"%s\",\n", info->bug_buf);
+		
+		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+			"\"PANIC\":\"%s\",\n", info->panic_buf);
+
+		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+			"\"PC\":\"%s\",\n", info->pc);
+
+		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+			"\"LR\":\"%s\",\n", info->lr);
+
+		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+			"\"STACK\":\"%s\",\n", info->backtrace);
+
+		sub_offset += snprintf((char *)sub_buf + sub_offset, (SEC_DEBUG_EX_INFO_SIZE>>1) - sub_offset,
+			"\"CHIPID\":\"\",\n");
+
+		sub_offset += snprintf((char *)sub_buf + sub_offset, (SEC_DEBUG_EX_INFO_SIZE>>1) - sub_offset,
+			"\"DBG0\":\"L2ERR:%s\",\n", info->dbg0);
+
+		sub_offset += snprintf((char *)sub_buf + sub_offset, (SEC_DEBUG_EX_INFO_SIZE>>1) - sub_offset,
+			"\"DBG1\":\"%s\",\n", "");
+
+		sub_offset += snprintf((char *)sub_buf + sub_offset, (SEC_DEBUG_EX_INFO_SIZE>>1) - sub_offset,
+			"\"DBG2\":\"%s\",\n", "");
+
+		sub_offset += snprintf((char *)sub_buf + sub_offset, (SEC_DEBUG_EX_INFO_SIZE>>1) - sub_offset,
+			"\"DBG3\":\"%s\",\n", "");
+
+		sub_offset += snprintf((char *)sub_buf + sub_offset, (SEC_DEBUG_EX_INFO_SIZE>>1) - sub_offset,
+			"\"DBG4\":\"%s\",\n", "");
+
+		sub_offset += snprintf((char *)sub_buf + sub_offset, (SEC_DEBUG_EX_INFO_SIZE>>1) - sub_offset,
+			"\"DBG5\":\"%s\"\n", "");
+
+		if (SEC_DEBUG_EX_INFO_SIZE - offset >= sub_offset) {
+			offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
+					"%s\n", sub_buf);
+		} else {
+			/* const 3 is ",\n size */
+			offset += snprintf((char *)buf + (SEC_DEBUG_EX_INFO_SIZE - sub_offset - 3), sub_offset + 3,
+					"\",\n%s\n", sub_buf);
+		}
+	}
+out:
+	if (info)
+		kfree(info);
+
+	seq_printf(m, buf);
+	return 0;
+}
+
+void sec_debug_store_bug_string(const char *fmt, ...)
+{
+	va_list args;
+
+	if (sec_debug_reset_ex_info) {
+		va_start(args, fmt);
+		vsnprintf(sec_debug_reset_ex_info->bug_buf,
+			sizeof(sec_debug_reset_ex_info->bug_buf), fmt, args);
+		va_end(args);
+	}
+}
+EXPORT_SYMBOL(sec_debug_store_bug_string);
+
+void sec_debug_store_additional_dbg(enum extra_info_dbg_type type, unsigned int value, const char *fmt, ...)
+{
+	va_list args;
+
+	if (sec_debug_reset_ex_info) {
+		switch (type) {
+			case DBG_0_L2_ERR:
+				va_start(args, fmt);
+				vsnprintf(sec_debug_reset_ex_info->dbg0,
+						sizeof(sec_debug_reset_ex_info->dbg0), fmt, args);
+				va_end(args);
+				break;
+			case DBG_1_RESERVED ... DBG_5_RESERVED:
+				break;
+			default:
+				break;
+		}
+	}
+}
+EXPORT_SYMBOL(sec_debug_store_additional_dbg);
+
+static void sec_debug_init_panic_extra_info(void)
+{
+	if (sec_debug_reset_ex_info) {
+		memset((void *)sec_debug_reset_ex_info, 0, sizeof(*sec_debug_reset_ex_info));
+	}
+}
+
+static int sec_reset_extra_info_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, set_reset_extra_info_proc_show, NULL);
+}
+
+static const struct file_operations sec_reset_extra_info_proc_fops = {
+	.open = sec_reset_extra_info_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __init sec_debug_ex_info_setup(char *str)
+{
+	unsigned size = memparse(str, &str);
+	int ret;
+
+	if (size && (size == roundup_pow_of_two(size)) && (*str == '@')) {
+		unsigned long long base = 0;
+
+		ret = kstrtoull(++str, 0, &base);
+
+		sec_debug_reset_ex_info_paddr = base;
+		sec_debug_reset_ex_info_size = (size + 0x1000 - 1) & ~(0x1000 -1);
+
+		pr_err("%s: ex info phy=0x%llx, size=0x%x\n",
+			__func__, sec_debug_reset_ex_info_paddr, sec_debug_reset_ex_info_size);
+	}
+	return 1;
+}
+__setup("sec_dbg_ex_info=", sec_debug_ex_info_setup);
+
+static int __init sec_debug_get_extra_info_region(void)
+{
+	if (!sec_debug_reset_ex_info_paddr || !sec_debug_reset_ex_info_size)
+		return -1;
+
+	sec_debug_reset_ex_info = ioremap_cached(sec_debug_reset_ex_info_paddr, sec_debug_reset_ex_info_size);
+		
+	if (!sec_debug_reset_ex_info) {
+		pr_err("%s: Failed to remap nocache ex info region\n", __func__);
+		return -1;
+	}
+
+	sec_debug_init_panic_extra_info();
+	return 0;
+}
+
+static int get_param_debug_header(enum param_debug_header_type type)
+{
+	int ret = 0;
+	static int get_state = PDH_STATE_INIT;
+
+	if (get_state == PDH_STATE_INVALID)
+		return -EINVAL;
+
+	if (type == PDH_TYPE_SUMMARY) {
+		if (summary_info != NULL) {
+			pr_err("%s : already memory alloc for summary_info\n", __func__);
+			return -EINVAL;
+		}
+
+		summary_info = kmalloc(sizeof(summary_info), GFP_KERNEL);
+		if (!summary_info) {
+			pr_err("%s : fail - kmalloc for summary_info\n", __func__);
+			return -ENOMEM;
+		}
+		if (!sec_get_param(param_index_reset_summary_info, summary_info)) {
+			pr_err("%s : fail - get param!! summary_info\n", __func__);
+			kfree(summary_info);
+			summary_info = NULL;
+			return -ENOENT;
+		}
+
+		if (get_state != PDH_STATE_VALID) {
+			if (summary_info->write_times == summary_info->read_times) {
+				pr_err("%s : untrustworthy summary_info\n", __func__);
+				get_state = PDH_STATE_INVALID;
+				kfree(summary_info);
+				summary_info = NULL;
+				return -EINVAL;
+			} else {
+				get_state = PDH_STATE_VALID;
+			}
+		}
+	} else if (type == PDH_TYPE_KLOG) {
+		if (klog_info != NULL) {
+			pr_err("%s : already memory alloc for klog_info\n", __func__);
+			return -EINVAL;
+		}
+
+		klog_info = kmalloc(sizeof(klog_info), GFP_KERNEL);
+		if (!klog_info) {
+			pr_err("%s : fail - kmalloc for klog_info\n", __func__);
+			return -ENOMEM;
+		}
+		if (!sec_get_param(param_index_reset_klog_info, klog_info)) {
+			pr_err("%s : fail - get param!! klog_info\n", __func__);
+			kfree(klog_info);
+			klog_info = NULL;
+			return -ENOENT;
+		}
+
+		if (get_state != PDH_STATE_VALID) {
+			if (klog_info->write_times == klog_info->read_times) {
+				pr_err("%s : untrustworthy klog_info\n", __func__);
+				get_state = PDH_STATE_INVALID;
+				kfree(klog_info);
+				klog_info = NULL;
+				return -EINVAL;
+			} else {
+				get_state = PDH_STATE_VALID;
+			}
+		}
+	} else if (type == PDH_TYPE_CHECK_STORE) {
+		struct param_debug_header *check_store = NULL;
+
+		check_store = kmalloc(sizeof(check_store), GFP_KERNEL);
+		if (!check_store) {
+			pr_err("%s : fail - kmalloc for check_store\n", __func__);
+			return -ENOMEM;
+		}
+		if (!sec_get_param(param_index_reset_klog_info, check_store)) {
+			pr_err("%s : fail - get param!! check_store\n", __func__);
+			kfree(check_store);
+			check_store = NULL;
+			return -ENOENT;
+		}
+
+		if (get_state != PDH_STATE_VALID) {
+			if (check_store->write_times == check_store->read_times) {
+				pr_err("%s : untrustworthy check_store\n", __func__);
+				get_state = PDH_STATE_INVALID;
+				kfree(check_store);
+				check_store = NULL;
+				return -EINVAL;
+			} else {
+				get_state = PDH_STATE_VALID;
+			}
+		}
+		kfree(check_store);
+		check_store = NULL;
+	}
+
+	return ret;
+}
+
+static int set_param_debug_header(enum param_debug_header_type type)
+{
+	int ret = 0;
+	static int set_state = PDH_STATE_INIT;
+
+	if (set_state == PDH_STATE_VALID) {
+		pr_info("%s : param_debug_header working well\n", __func__);
+		return ret;
+	}
+
+	if (type == PDH_TYPE_SUMMARY) {
+		if ((summary_info->write_times - 1) == summary_info->read_times) {
+			pr_info("%s : summary_info working well\n", __func__);
+			summary_info->read_times++;
+		} else {
+			pr_info("%s : summary_info read[%d] and write[%d] work sync error.\n",
+					__func__, summary_info->read_times, summary_info->write_times);
+			summary_info->read_times = summary_info->write_times;
+		}
+
+		if (!sec_set_param(param_index_reset_summary_info, summary_info)) {
+			pr_err("%s : fail - set param!! summary_info\n", __func__);
+			ret = -ENOENT;
+		} else {
+			set_state = PDH_STATE_VALID;
+		}
+	} else if (type == PDH_TYPE_KLOG) {
+		if ((klog_info->write_times - 1) == klog_info->read_times) {
+			pr_info("%s : klog_info working well\n", __func__);
+			klog_info->read_times++;
+		} else {
+			pr_info("%s : klog_info read[%d] and write[%d] work sync error.\n",
+					__func__, klog_info->read_times, klog_info->write_times);
+			klog_info->read_times = klog_info->write_times;
+		}
+
+		if (!sec_set_param(param_index_reset_klog_info, klog_info)) {
+			pr_err("%s : fail - set param!! klog_info\n", __func__);
+			ret = -ENOENT;
+		} else {
+			set_state = PDH_STATE_VALID;
+		}
+
+	}
+
+
+	return ret;
+}
+
+static int sec_reset_summary_info_init(void)
+{
+	int ret = 0;
+
+	if (summary_buf != NULL)
+		return true;
+
+	if (get_param_debug_header(PDH_TYPE_SUMMARY) < 0)
+		return -EINVAL;
+
+	if (summary_info->summary_size > SEC_PARAM_DUMP_SUMMARY_SIZE) {
+		pr_err("%s : summary_size has problem.\n", __func__);
+		return -EINVAL;
+	}
+
+	summary_buf = vmalloc(SEC_PARAM_DUMP_SUMMARY_SIZE);
+	if (!summary_buf) {
+		pr_err("%s : fail - kmalloc for summary_buf\n", __func__);
+		return -ENOMEM;
+	}
+	if (!sec_get_param(param_index_reset_summary, summary_buf)) {
+		pr_err("%s : fail - get param!! summary data\n", __func__);
+		ret = -ENOENT;
+		goto error_summary_buf;
+	}
+
+	pr_info("%s : w[%d] r[%d] idx[%d] size[%d]\n",
+			__func__, summary_info->write_times, summary_info->read_times, summary_info-> ap_klog_idx, summary_info->summary_size);
+
+	return ret;
+
+error_summary_buf:
+	vfree(summary_buf);
+
+	return ret;
+}
+
+static int sec_reset_summary_completed(void)
+{
+	int ret = 0;
+
+	ret = set_param_debug_header(PDH_TYPE_SUMMARY);
+
+	vfree(summary_buf);
+	kfree(summary_info);
+
+	summary_info = NULL;
+	summary_buf = NULL;
+	pr_info("%s finish\n", __func__);
+	return ret;
+}
+
+static ssize_t sec_reset_summary_info_proc_read(struct file *file, char __user *buf,
+		size_t len, loff_t *offset)
+{
+	loff_t pos = *offset;
+	ssize_t count;
+
+	if (sec_reset_summary_info_init() < 0)
+		return -ENOENT;
+
+	if (pos >= SEC_PARAM_DUMP_SUMMARY_SIZE)
+		return -ENOENT;
+
+	if (pos >= summary_info->summary_size) {
+		pr_info("%s : pos %lld, size %d\n", __func__, pos, summary_info->summary_size);
+		sec_reset_summary_completed();
+		return 0;
+	}
+
+	count = min(len, (size_t)(summary_info->summary_size - pos));
+	if (copy_to_user(buf, summary_buf + pos, count))
+		return -EFAULT;
+
+	*offset += count;
+	return count;
+}
+
+static const struct file_operations sec_reset_summary_info_proc_fops = {
+	.owner = THIS_MODULE,
+	.read = sec_reset_summary_info_proc_read,
+};
+
+static int sec_reset_klog_init(void)
+{
+	int ret = 0;
+
+	if ((klog_read_buf != NULL) && (klog_buf != NULL))
+		return true;
+
+	if (get_param_debug_header(PDH_TYPE_KLOG) < 0)
+		return -EINVAL;
+
+	klog_read_buf = vmalloc(SEC_PARAM_KLOG_SIZE);
+	if (!klog_read_buf) {
+		pr_err("%s : fail - vmalloc for klog_read_buf\n", __func__);
+		return -ENOMEM;
+	}
+	if (!sec_get_param(param_index_reset_klog, klog_read_buf)) {
+		pr_err("%s : fail - get param!! summary data\n", __func__);
+		ret = -ENOENT;
+		goto error_klog_buf;
+	}
+
+	pr_info("%s : idx[%d]\n", __func__, klog_info->ap_klog_idx);
+
+	klog_size = min((size_t)SEC_PARAM_KLOG_SIZE, (size_t)klog_info->ap_klog_idx);
+	    
+	klog_buf = vmalloc(klog_size);
+	if (!klog_buf) {
+		pr_err("%s : fail - vmalloc for klog_read_buf\n", __func__);
+		ret = -ENOMEM;
+		goto error_klog_buf;
+	}
+	
+	if (klog_size && klog_buf && klog_read_buf) {
+		unsigned int i;
+		for (i = 0; i < klog_size; i++)
+			klog_buf[i] = klog_read_buf[(klog_info->ap_klog_idx - klog_size + i) & (SEC_PARAM_KLOG_SIZE - 1)];
+	}
+
+	return ret;
+
+error_klog_buf:
+	vfree(klog_buf);
+
+	return ret;
+}
+
+static void sec_reset_klog_completed(void)
+{
+	set_param_debug_header(PDH_TYPE_KLOG);
+
+	vfree(klog_buf);
+	vfree(klog_read_buf);
+	kfree(klog_info);
+
+	klog_info = NULL;
+	klog_buf = NULL;
+	klog_read_buf = NULL;
+	klog_size = 0;
+
+	pr_info("%s finish\n", __func__);
+}
+
+static ssize_t sec_reset_klog_proc_read(struct file *file, char __user *buf,
+		size_t len, loff_t *offset)
+{
+	loff_t pos = *offset;
+	ssize_t count;
+
+	if (sec_reset_klog_init() < 0)
+		return -ENOENT;
+
+	if (pos >= klog_size) {
+		pr_info("%s : pos %lld, size %d\n", __func__, pos, klog_size);
+		sec_reset_klog_completed();
+		return 0;
+	}
+
+	count = min(len, (size_t)(klog_size - pos));
+	if (copy_to_user(buf, klog_buf + pos, count))
+		return -EFAULT;
+
+	*offset += count;
+	return count;
+}
+
+static const struct file_operations sec_reset_klog_proc_fops = {
+	.owner = THIS_MODULE,
+	.read = sec_reset_klog_proc_read,
+};
+
+static int set_store_lastkmsg_proc_show(struct seq_file *m, void *v)
+{
+	if (get_param_debug_header(PDH_TYPE_CHECK_STORE) < 0)
+		seq_printf(m, "0\n");
+	else
+		seq_printf(m, "1\n");
+
+	return 0;
+}
+
+static int sec_store_lastkmsg_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, set_store_lastkmsg_proc_show, NULL);
+}
+
+static const struct file_operations sec_store_lastkmsg_proc_fops = {
+	.open = sec_store_lastkmsg_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+static int __init sec_debug_reset_reason_init(void)
+{
+	struct proc_dir_entry *entry;
+
+	entry = proc_create("reset_reason", S_IWUGO, NULL,
+		&sec_reset_reason_proc_fops);
+
+	if (!entry)
+		return -ENOMEM;
+
+	entry = proc_create("reset_reason_extra_info", S_IWUGO, NULL,
+		&sec_reset_extra_info_proc_fops);
+
+	if (!entry)
+		return -ENOMEM;
+
+	entry = proc_create("reset_summary", S_IWUGO, NULL,
+			&sec_reset_summary_info_proc_fops);
+
+	if (!entry)
+		return -ENOMEM;	
+
+	entry = proc_create("reset_klog", S_IWUGO, NULL,
+			&sec_reset_klog_proc_fops);
+
+	if (!entry)
+		return -ENOMEM;	
+
+	entry = proc_create("store_lastkmsg", S_IWUGO, NULL,
+			&sec_store_lastkmsg_proc_fops);
+
+	if (!entry)
+		return -ENOMEM;	
+
+	return 0;
+}
+
+device_initcall(sec_debug_reset_reason_init);
+#endif // CONFIG_USER_RESET_DEBUG
+
 int __init sec_debug_init(void)
 {
 	int ret;
 
+#ifdef CONFIG_USER_RESET_DEBUG
+	sec_debug_get_extra_info_region();
+#endif
 #ifdef CONFIG_PROC_AVC
 	sec_avc_log_init();
 #endif	
@@ -986,15 +1949,34 @@ int __init sec_debug_init(void)
 	register_reboot_notifier(&nb_reboot_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);
 
-	if (!enable)
-		return -EPERM;
+	sec_debug_set_upload_magic(0x776655ee);
+	sec_debug_set_upload_cause(UPLOAD_CAUSE_INIT);
 
 #ifdef CONFIG_SEC_DEBUG_SCHED_LOG
 	__init_sec_debug_log();
 #endif
 
-	sec_debug_set_upload_magic(0x776655ee);
-	sec_debug_set_upload_cause(UPLOAD_CAUSE_INIT);
+	if (!enable) {
+		/* SEC will get reset_summary.html in debug low.
+		 * reset_summary.html need more information about abnormal reset or kernel panic.
+		 * So we skip as below*/
+		//sec_do_bypass_sdi_execution_in_low();
+		return -EPERM;
+	}
+
+#ifdef CONFIG_SEC_DEBUG_CANCERIZER
+	atomic_set(&cmctx.nr_test, 0);
+	atomic_set(&cmctx.nr_running, 0);
+	init_waitqueue_head(&cmctx.mwq);
+	init_waitqueue_head(&cmctx.dwq);
+	init_completion(&cmctx.done);
+	cmctx.self = kthread_create(cancerizer_monitor, NULL, "cancerizerm");
+	if (IS_ERR(cmctx.self)) {
+		ret = PTR_ERR(cmctx.self);
+		cmctx.self = NULL;
+		return ret;
+	}
+#endif
 
 	return 0;
 }
@@ -1012,7 +1994,7 @@ int sec_debug_is_enabled_for_ssr(void)
 #endif
 
 #ifdef CONFIG_SEC_FILE_LEAK_DEBUG
-void sec_debug_print_file_list(void)
+int sec_debug_print_file_list(void)
 {
 	int i=0;
 	unsigned int nCnt=0;
@@ -1020,6 +2002,7 @@ void sec_debug_print_file_list(void)
 	struct files_struct *files = current->files;
 	const char *pRootName=NULL;
 	const char *pFileName=NULL;
+	int ret=0;
 
 	nCnt=files->fdt->max_fds;
 
@@ -1045,9 +2028,14 @@ void sec_debug_print_file_list(void)
 
 			printk(KERN_ERR "[%04d]%s%s\n",i,pRootName==NULL?"null":pRootName,
 							pFileName==NULL?"null":pFileName);
+			ret++;
 		}
 		rcu_read_unlock();
 	}
+	if(ret == nCnt)
+		return 1;
+	else
+		return 0;
 }
 
 void sec_debug_EMFILE_error_proc(void)
@@ -1062,8 +2050,9 @@ void sec_debug_EMFILE_error_proc(void)
 	if (!strcmp(current->group_leader->comm, "system_server")
 		||!strcmp(current->group_leader->comm, "mediaserver")
 		||!strcmp(current->group_leader->comm, "surfaceflinger")){
-		sec_debug_print_file_list();
-		panic("Too many open files");
+		if (sec_debug_print_file_list() == 1) {
+			panic("Too many open files");
+		}
 	}
 }
 #endif
@@ -1291,61 +2280,6 @@ static int __init sec_debug_user_fault_init(void)
 	return 0;
 }
 device_initcall(sec_debug_user_fault_init);
-
-#ifdef CONFIG_USER_RESET_DEBUG
-static int set_reset_reason_proc_show(struct seq_file *m, void *v)
-{
-	if (reset_reason == USER_UPLOAD_CAUSE_SMPL)
-		seq_printf(m, "SPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_WTSR)
-		seq_printf(m, "WPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_WATCHDOG)
-		seq_printf(m, "DPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_PANIC)
-		seq_printf(m, "KPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_MANUAL_RESET)
-		seq_printf(m, "MPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_POWER_RESET)
-		seq_printf(m, "PPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_REBOOT)
-		seq_printf(m, "RPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_BOOTLOADER_REBOOT)
-		seq_printf(m, "BPON\n");
-	else if (reset_reason == USER_UPLOAD_CAUSE_THERMAL)
-		seq_printf(m, "TPON\n");
-	else
-		seq_printf(m, "NPON\n");
-
-	return 0;
-}
-
-static int sec_reset_reason_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, set_reset_reason_proc_show, NULL);
-}
-
-static const struct file_operations sec_reset_reason_proc_fops = {
-	.open = sec_reset_reason_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int __init sec_debug_reset_reason_init(void)
-{
-	struct proc_dir_entry *entry;
-
-	entry = proc_create("reset_reason", S_IWUGO, NULL,
-		&sec_reset_reason_proc_fops);
-
-	if (!entry)
-		return -ENOMEM;
-
-	return 0;
-}
-
-device_initcall(sec_debug_reset_reason_init);
-#endif
 
 
 #ifdef CONFIG_SEC_DEBUG_DCVS_LOG

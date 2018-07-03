@@ -658,43 +658,56 @@ power_attr(cpufreq_table);
 power_attr(cpufreq_max_limit);
 power_attr(cpufreq_min_limit);
 
-struct cpufreq_limit_handle *cpufreq_min_touch;
-struct cpufreq_limit_handle *cpufreq_min_finger;
+typedef struct {
+	char name[20];
+	struct cpufreq_limit_handle *handle;
+	int id_mask;
+} cpufreq_limit_list_t;
+
+cpufreq_limit_list_t cpufreq_limit_list[] = {
+	{
+		.name = "touch min",
+		.handle = NULL,
+		.id_mask = DVFS_TOUCH_ID_MASK
+	},
+	{
+		.name = "finger min",
+		.handle = NULL ,
+		.id_mask = DVFS_FINGER_ID_MASK
+	},
+	{
+		.name = "multi-touch min",
+		.handle = NULL ,
+		.id_mask = DVFS_MULTI_TOUCH_ID_MASK
+	},
+};
 
 int set_freq_limit(unsigned long id, unsigned int freq)
 {
 	ssize_t ret = -EINVAL;
+	int mask = (1 << id);
+	int i;
+	cpufreq_limit_list_t *list;
 
 	mutex_lock(&cpufreq_limit_mutex);
 
 	pr_debug("%s: id=%d freq=%d\n", __func__, (int)id, freq);
 
-	/* min lock */
-	if (id & DVFS_TOUCH_ID) {
-		if (freq != -1) {
-			cpufreq_min_touch = cpufreq_limit_min_freq(freq, "touch min");
-			if (IS_ERR(cpufreq_min_touch)) {
-				pr_err("%s: fail to get the handle\n", __func__);
-				cpufreq_min_touch = NULL;
-				goto out;
+	for (i = 0; i < ARRAY_SIZE(cpufreq_limit_list); i++) {
+		list = &cpufreq_limit_list[i];
+		/* min lock */
+		if (list->id_mask & mask) {
+			if (freq != -1) {
+				list->handle = cpufreq_limit_min_freq(freq, list->name);
+				if (IS_ERR(list->handle)) {
+					pr_err("%s: fail to get the handle\n", __func__);
+					list->handle = NULL;
+					goto out;
+				}
+			} else if (list->handle) {
+				cpufreq_limit_put(list->handle);
+				list->handle = NULL;
 			}
-		} else if (cpufreq_min_touch) {
-			cpufreq_limit_put(cpufreq_min_touch);
-			cpufreq_min_touch = NULL;
-		}
-	}
-	
-	if (id & DVFS_FINGER_ID) {
-		if (freq != -1) {
-			cpufreq_min_finger = cpufreq_limit_min_freq(freq, "finger min");
-			if (IS_ERR(cpufreq_min_finger)) {
-				pr_err("%s: fail to get the handle\n", __func__);
-				cpufreq_min_finger = NULL;
-				goto out;
-			}
-		} else if (cpufreq_min_finger) {
-			cpufreq_limit_put(cpufreq_min_finger);
-			cpufreq_min_finger = NULL;
 		}
 	}
 	ret = 0;
@@ -775,6 +788,34 @@ power_attr(pm_freeze_timeout);
 
 #endif	/* CONFIG_FREEZER*/
 
+#ifdef CONFIG_SEC_PM
+extern int qpnp_set_resin_wk_int(int en);
+static int volkey_wakeup = 1;
+static ssize_t volkey_wakeup_show(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", volkey_wakeup);
+}
+
+static ssize_t volkey_wakeup_store(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t n)
+{
+	int val;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	volkey_wakeup = val;
+	qpnp_set_resin_wk_int(volkey_wakeup);
+
+	return n;
+
+}
+
+power_attr(volkey_wakeup);
+#endif /* CONFIG_SEC_PM */
+
 #if defined(CONFIG_SW_SELF_DISCHARGING)
 static char selfdischg_usage_str[] =
 #if defined(CONFIG_ARCH_MSM8996)
@@ -826,6 +867,35 @@ static struct kobj_attribute selfdischg_usage_attr = {
 };
 #endif /* CONFIG_SW_SELF_DISCHARGING */
 
+#if defined(CONFIG_FOTA_LIMIT)
+static char fota_limit_str[] =
+#if defined(CONFIG_ARCH_MSM8996)
+	"[START]\n"
+	"/sys/power/cpufreq_max_limit 1190400\n"
+	"[STOP]\n"
+	"/sys/power/cpufreq_max_limit -1\n"
+	"[END]\n";
+#else
+	"[NOT_SUPPORT]\n";
+#endif
+
+static ssize_t fota_limit_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	pr_info("%s\n", __func__);
+	return sprintf(buf, "%s", fota_limit_str);
+}
+
+static struct kobj_attribute fota_limit_attr = {
+	.attr	= {
+		.name = __stringify(fota_limit),
+		.mode = 0440,
+	},
+	.show	= fota_limit_show,
+};
+#endif /* CONFIG_FOTA_LIMIT */
+
 static struct attribute * g[] = {
 	&state_attr.attr,
 #ifdef CONFIG_PM_TRACE
@@ -857,9 +927,15 @@ static struct attribute * g[] = {
 #ifdef CONFIG_FREEZER
 	&pm_freeze_timeout_attr.attr,
 #endif
+#ifdef CONFIG_SEC_PM
+	&volkey_wakeup_attr.attr,
+#endif
 #if defined(CONFIG_SW_SELF_DISCHARGING)
 	&selfdischg_usage_attr.attr,
 #endif
+#if defined(CONFIG_FOTA_LIMIT)
+	&fota_limit_attr.attr,
+#endif /* CONFIG_FOTA_LIMIT */
 	NULL,
 };
 

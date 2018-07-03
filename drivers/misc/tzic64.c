@@ -43,6 +43,7 @@ typedef enum {
     OEMFLAG_TZ_DRM,
     OEMFLAG_FIDD,
     OEMFLAG_CC,
+    OEMFLAG_SYSSCOPE,
     OEMFLAG_NUM_OF_FLAG,
 } Sec_OemFlagID_t;
 
@@ -181,7 +182,7 @@ static long tzic_ioctl(struct file *file, unsigned cmd,
 {
 	int ret = 0;
 	int i = 0;
-	t_flag param;
+	t_flag param = { 0, 0 };
 
 	switch(cmd){
 		case TZIC_IOCTL_GET_FUSE_REQ:

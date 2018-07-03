@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,8 +26,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-core.h>
-#include <media/msm_camera.h>
-#include <media/msm_isp.h>
 
 #include "msm.h"
 #include "msm_buf_mgr.h"
@@ -64,13 +62,13 @@ static int msm_buf_check_head_sanity(struct msm_isp_bufq *bufq)
 	}
 
 	if (prev->next != &bufq->head) {
-		pr_err("%s: Error! head prev->next is %p should be %p\n",
+		pr_err("%s: Error! head prev->next is %pK should be %pK\n",
 			__func__, prev->next, &bufq->head);
 		return -EINVAL;
 	}
 
 	if (next->prev != &bufq->head) {
-		pr_err("%s: Error! head next->prev is %p should be %p\n",
+		pr_err("%s: Error! head next->prev is %pK should be %pK\n",
 			__func__, next->prev, &bufq->head);
 		return -EINVAL;
 	}
@@ -140,8 +138,6 @@ static uint32_t msm_isp_get_buf_handle(
 
 	for (i = 0; i < buf_mgr->num_buf_q; i++) {
 		if (buf_mgr->bufq[i].bufq_handle == 0) {
-			memset(&buf_mgr->bufq[i],
-				0, sizeof(struct msm_isp_bufq));
 			buf_mgr->bufq[i].bufq_handle =
 				embedded_stream_id << 8 | i;
 			return buf_mgr->bufq[i].bufq_handle;
@@ -232,7 +228,7 @@ static void msm_isp_unprepare_v4l2_buf(
 	struct msm_isp_bufq *bufq = NULL;
 
 	if (!buf_mgr || !buf_info) {
-		pr_err("%s: NULL ptr %p %p\n", __func__,
+		pr_err("%s: NULL ptr %pK %pK\n", __func__,
 			buf_mgr, buf_info);
 		return;
 	}
@@ -259,7 +255,7 @@ static int msm_isp_map_buf(struct msm_isp_buf_mgr *buf_mgr,
 	int ret;
 
 	if (!buf_mgr || !mapped_info) {
-		pr_err_ratelimited("%s: %d] NULL ptr buf_mgr %p mapped_info %p\n",
+		pr_err_ratelimited("%s: %d] NULL ptr buf_mgr %pK mapped_info %pK\n",
 			__func__, __LINE__, buf_mgr, mapped_info);
 		return -EINVAL;
 	}
@@ -682,7 +678,10 @@ static int msm_isp_update_put_buf_cnt_unsafe(
 			bufq->stream_id, buf_info->state);
 			return -EFAULT;
 		}
-		BUG_ON(buf_info->pingpong_bit != pingpong_bit);
+		if (buf_info->pingpong_bit != pingpong_bit) {
+			pr_err("%s: Pingpong bit mismatch\n", __func__);
+			return -EFAULT;
+		}
 	}
 
 	if (bufq->buf_type != ISP_SHARE_BUF ||
@@ -768,11 +767,9 @@ static int msm_isp_buf_done(struct msm_isp_buf_mgr *buf_mgr,
 		if (state == MSM_ISP_BUFFER_STATE_DEQUEUED) {
 			buf_info->state = MSM_ISP_BUFFER_STATE_DISPATCHED;
 			spin_unlock_irqrestore(&bufq->bufq_lock, flags);
-			buf_info->vb2_buf->v4l2_buf.timestamp = *tv;
-			buf_info->vb2_buf->v4l2_buf.sequence  = frame_id;
-			buf_info->vb2_buf->v4l2_buf.reserved  = output_format;
 			buf_mgr->vb2_ops->buf_done(buf_info->vb2_buf,
-				bufq->session_id, bufq->stream_id);
+				bufq->session_id, bufq->stream_id,
+				frame_id, tv, output_format);
 		} else {
 			spin_unlock_irqrestore(&bufq->bufq_lock, flags);
 		}
@@ -1026,7 +1023,7 @@ static int msm_isp_request_bufq(struct msm_isp_buf_mgr *buf_mgr,
 		msm_isp_free_bufq_handle(buf_mgr, buf_request->handle);
 		return -ENOMEM;
 	}
-
+	spin_lock_init(&bufq->bufq_lock);
 	bufq->bufq_handle = buf_request->handle;
 	bufq->session_id = buf_request->session_id;
 	bufq->stream_id = buf_request->stream_id;
@@ -1034,8 +1031,8 @@ static int msm_isp_request_bufq(struct msm_isp_buf_mgr *buf_mgr,
 	bufq->buf_type = buf_request->buf_type;
 	for (i = 0; i < ISP_NUM_BUF_MASK; i++)
 		bufq->put_buf_mask[i] = 0;
-
 	INIT_LIST_HEAD(&bufq->head);
+
 	for (i = 0; i < buf_request->num_buf; i++) {
 		bufq->bufs[i].state = MSM_ISP_BUFFER_STATE_INITIALIZED;
 		bufq->bufs[i].buf_debug.put_state[0] =

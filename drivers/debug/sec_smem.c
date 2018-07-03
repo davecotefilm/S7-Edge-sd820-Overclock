@@ -20,81 +20,89 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <soc/qcom/smsm.h>
+#include "include/sec_smem.h"
+
 
 #define SUSPEND	0x1
 #define RESUME	0x0
 
-/**
- * struct smem_sec_hw_info_type - for SMEM_ID_VENDOR0
- * @afe_rx/tx_good :	Request from CP system team
- * @afe_rx/tx_mute :	Request from CP system team
- */
-struct smem_afe_log_type {
-    uint64_t afe_rx_good;
-    uint64_t afe_rx_mute;
-    uint64_t afe_tx_good;
-    uint64_t afe_tx_mute;
-};
+#define MAX_DDR_VENDOR 16
 
-struct sec_smem_id_vendor0_type {
-	uint32_t ddr_vendor;
-	uint32_t reserved;
-	struct smem_afe_log_type afe_log;
-};
+static char* lpddr4_manufacture_name[MAX_DDR_VENDOR] =
+	{"NA",
+	"SEC"/* Samsung */,
+	"NA",
+	"NA",
+	"NA",
+	"NAN" /* Nanya */,
+	"HYN" /* SK hynix */,
+	"NA",
+	"WIN" /* Winbond */,
+	"ESM" /* ESMT */,
+	"NA",
+	"NA",
+	"NA",
+	"NA",
+	"NA",
+	"MIC" /* Micron */,};
 
-/**
- * struct smem_sec_hw_info_type - for SMEM_ID_VENDOR1
- * @hw_rev:	        Samsung Board HW Revision
- * @ap_suspended:   Indicate whether device goes to suspend mode
- */
-struct sec_smem_hw_info_type {
-	uint64_t hw_rev;
-	uint64_t ap_suspended;
-};
+char* get_ddr_vendor_name(void)
+{
+	unsigned size;
+	struct sec_smem_id_vendor0_type *vendor0 = NULL;
 
-struct sec_smem_id_vendor1_type {
-	struct sec_smem_hw_info_type hw_info;
-};
+	vendor0 = smem_get_entry(SMEM_ID_VENDOR0, &size,
+					SMEM_APPS, SMEM_ANY_HOST_FLAG);
+
+	if (!vendor0 || !size) {
+		pr_err("%s: unable to read smem entry\n", __func__);
+		return 0;
+	}
+
+	return lpddr4_manufacture_name[vendor0->ddr_vendor & 0x0F];
+}
+EXPORT_SYMBOL(get_ddr_vendor_name);
 
 static int sec_smem_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct sec_smem_id_vendor1_type *vendor1 = platform_get_drvdata(pdev);
+	sec_smem_id_vendor1_v3_t *vendor1 = platform_get_drvdata(pdev);
 
-	vendor1->hw_info.ap_suspended = SUSPEND;
+	vendor1->ven1_v2.ap_suspended = SUSPEND;
 
-	pr_debug("%s : smem_sec_hw_info->ap_suspended(%d)\n",
-			__func__, (uint32_t)vendor1->hw_info.ap_suspended);
+	pr_debug("%s : smem_vendor1 ap_suspended(%d)\n",
+			__func__, (uint32_t)vendor1->ven1_v2.ap_suspended);
 	return 0;
 }
 
 static int sec_smem_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct sec_smem_id_vendor1_type *vendor1 = platform_get_drvdata(pdev);
+	sec_smem_id_vendor1_v3_t *vendor1 = platform_get_drvdata(pdev);
 
-	vendor1->hw_info.ap_suspended = RESUME;
+	vendor1->ven1_v2.ap_suspended = RESUME;
 
-	pr_debug("%s : smem_sec_hw_info->ap_suspended(%d)\n",
-			__func__, (uint32_t)vendor1->hw_info.ap_suspended);
+	pr_debug("%s : smem_vendor1 ap_suspended(%d)\n",
+			__func__, (uint32_t)vendor1->ven1_v2.ap_suspended);
 	return 0;
 }
 
 static int sec_smem_probe(struct platform_device *pdev)
 {
-	struct sec_smem_id_vendor1_type *sec_smem_hw_info;
+	sec_smem_id_vendor1_v3_t *vendor1 = NULL;
+	unsigned size = 0;
 
-	sec_smem_hw_info = smem_find(SMEM_ID_VENDOR1,
-						sizeof(struct sec_smem_id_vendor1_type),
-						0, SMEM_ANY_HOST_FLAG);
+	vendor1 = smem_get_entry(SMEM_ID_VENDOR1, &size,
+					0, SMEM_ANY_HOST_FLAG);
 
-	if (!sec_smem_hw_info) {
-		pr_err("%s size(%lu): smem_sec_hw_info alloc error\n", __func__,
-				sizeof(struct sec_smem_id_vendor1_type));
+	if (!vendor1) {
+		pr_err("%s size(%lu, %u): SMEM_ID_VENDOR1 get entry error\n", __func__,
+				sizeof(sec_smem_id_vendor1_v3_t), size);
+		panic("sec_smem_probe fail");
 		return -EINVAL;
 	}
 
-	platform_set_drvdata(pdev, sec_smem_hw_info);
+	platform_set_drvdata(pdev, vendor1);
 
 	return 0;
 }

@@ -29,6 +29,10 @@
 #include <linux/delay.h>
 #include <linux/host_notify.h>
 #include <linux/string.h>
+#if defined(CONFIG_MUIC_SUPPORT_EARJACK)
+#include <linux/input.h>
+#include <linux/switch.h>
+#endif
 
 #include <linux/muic/muic.h>
 
@@ -40,7 +44,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #endif /* CONFIG_OF */
-
+ 
 #include "muic-internal.h"
 #include "muic_i2c.h"
 #include "muic_regmap.h"
@@ -68,6 +72,9 @@ int detach_ta(muic_data_t *pmuic)
 	} else
 		pr_info("%s: No Vendor API ready.\n", __func__);
 
+#if defined(CONFIG_SEC_DEBUG)
+	pmuic->usb_to_ta_state = false;
+#endif
 	return 0;
 }
 
@@ -84,6 +91,15 @@ static int set_BCD_RESCAN_reg(muic_data_t *pmuic, int value)
 {
 	struct regmap_ops *pops = pmuic->regmapdesc->regmapops;
 	int uattr, ret;
+
+#if defined(CONFIG_MUIC_UNIVERSAL_SM5703) || defined(CONFIG_MUIC_UNIVERSAL_SM5705)
+	struct vendor_ops *pvendor = pmuic->regmapdesc->vendorops;
+
+	if (pvendor && pvendor->rescan) {
+	    ret = pvendor->rescan(pmuic->regmapdesc, value);
+	    return ret;
+	}
+#endif
 
 	pops->ioctl(pmuic->regmapdesc, GET_RESID3, NULL, &uattr);
 
@@ -174,6 +190,22 @@ void set_switch_mode(muic_data_t *pmuic, int mode)
 	return;
 }
 
+#if defined(CONFIG_MUIC_SM5705_SWITCH_CONTROL)
+void muic_switch_enable(muic_data_t *pmuic, int enable)
+{
+	int val = 0;
+	if(gpio_is_valid(pmuic->switch_gpio)){
+		val = gpio_get_value(pmuic->switch_gpio);
+		if(val != enable)
+			gpio_set_value(pmuic->switch_gpio, enable);
+	}
+	if(enable)
+		set_switch_mode(pmuic, SWMODE_MANUAL);
+	else
+		set_switch_mode(pmuic, SWMODE_AUTO);
+}
+#endif
+
 int get_adc_scan_mode(muic_data_t *pmuic)
 {
 	struct vendor_ops *pvendor = pmuic->regmapdesc->vendorops;
@@ -221,6 +253,7 @@ int com_to_open_with_vbus(muic_data_t *pmuic)
 	int ret = 0;
 
 	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
+
 	ret = regmap_com_to(pmuic->regmapdesc, COM_OPEN_WITH_V_BUS);
 	if (ret < 0)
 		pr_err("%s:%s com_to_open err\n", MUIC_DEV_NAME, __func__);
@@ -436,16 +469,24 @@ int attach_usb(muic_data_t *pmuic,
 
 	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
 
+	if (pmuic->vps_table == VPS_TYPE_SCATTERED) {
+		if(new_dev == ATTACHED_DEV_TIMEOUT_OPEN_MUIC)
+			set_switch_mode(pmuic, SWMODE_MANUAL);
+		else
+			set_switch_mode(pmuic, SWMODE_AUTO);
+	}
 	ret = attach_usb_util(pmuic, new_dev);
 	if (ret < 0) {
 		pr_err("%s:%s fail.(%d)\n", MUIC_DEV_NAME, __func__, ret);
 		return ret;
 	}
-	pops->ioctl(pmuic->regmapdesc, GET_COMP2, NULL, &comp2_uattr);
-	pops->ioctl(pmuic->regmapdesc, GET_COMN1, NULL, &comn1_uattr);
-	pr_info("%s:%s COMP2Sw:0x%x, COMN1Sw:0x%x\n", MUIC_DEV_NAME, __func__,
-		regmap_read_value(pmuic->regmapdesc, comp2_uattr),
-		regmap_read_value(pmuic->regmapdesc, comn1_uattr));
+	if(pmuic->vps_table == VPS_TYPE_TABLE) {
+		pops->ioctl(pmuic->regmapdesc, GET_COMP2, NULL, &comp2_uattr);
+		pops->ioctl(pmuic->regmapdesc, GET_COMN1, NULL, &comn1_uattr);
+		pr_info("%s:%s COMP2Sw:0x%x, COMN1Sw:0x%x\n", MUIC_DEV_NAME, __func__,
+			regmap_read_value(pmuic->regmapdesc, comp2_uattr),
+			regmap_read_value(pmuic->regmapdesc, comn1_uattr));
+	}
 
 	return ret;
 }
@@ -458,19 +499,25 @@ int detach_usb(muic_data_t *pmuic)
 	pr_info("%s:%s attached_dev type(%d)\n", MUIC_DEV_NAME, __func__,
 			pmuic->attached_dev);
 
+	if (pmuic->vps_table == VPS_TYPE_SCATTERED)
+		set_switch_mode(pmuic, SWMODE_AUTO);
+
 	ret = com_to_open_with_vbus(pmuic);
 	if (ret < 0) {
 		pr_err("%s:%s fail.(%d)\n", MUIC_DEV_NAME, __func__, ret);
 		return ret;
 	}
 	pmuic->attached_dev = ATTACHED_DEV_NONE_MUIC;
-
-	pops->ioctl(pmuic->regmapdesc, GET_COMP2, NULL, &comp2_uattr);
-	pops->ioctl(pmuic->regmapdesc, GET_COMN1, NULL, &comn1_uattr);
-	pr_info("%s:%s COMP2Sw:0x%x, COMN1Sw:0x%x\n", MUIC_DEV_NAME, __func__,
-		regmap_read_value(pmuic->regmapdesc, comp2_uattr),
-		regmap_read_value(pmuic->regmapdesc, comn1_uattr));
-
+	if(pmuic->vps_table == VPS_TYPE_TABLE) {
+		pops->ioctl(pmuic->regmapdesc, GET_COMP2, NULL, &comp2_uattr);
+		pops->ioctl(pmuic->regmapdesc, GET_COMN1, NULL, &comn1_uattr);
+		pr_info("%s:%s COMP2Sw:0x%x, COMN1Sw:0x%x\n", MUIC_DEV_NAME, __func__,
+			regmap_read_value(pmuic->regmapdesc, comp2_uattr),
+			regmap_read_value(pmuic->regmapdesc, comn1_uattr));
+	}
+#if defined(CONFIG_SEC_DEBUG)
+	pmuic->usb_to_ta_state = false;
+#endif
 	return ret;
 }
 
@@ -610,6 +657,87 @@ int detach_ps_cable(muic_data_t *pmuic)
   * 2. Set AP USB path
   * 3. Set continuous adc scan mode with USB's notification.
   */
+#if defined(CONFIG_MUIC_SUPPORT_EARJACK)
+int attach_earjack(muic_data_t *pmuic,
+			muic_attached_dev_t new_dev)
+{
+	int ret = 0;
+
+	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
+	if (new_dev == ATTACHED_DEV_EARJACK_MUIC) {
+	/*	Earjack processing	*/
+		if (pmuic->is_earkeypressed) {
+			/* send event sendend key type to upper layer */
+			pmuic->is_earkeypressed = false;
+			input_event(pmuic->input, EV_KEY,
+					pmuic->old_keycode, pmuic->is_earkeypressed);
+			input_sync(pmuic->input);
+		}
+		if (pmuic->attached_dev == new_dev) {
+			pr_info("%s:%s duplicated(earjack)\n", MUIC_DEV_NAME, __func__);
+			return ret;
+		}
+		set_adc_scan_mode(pmuic, ADC_SCANMODE_CONTINUOUS);
+		msleep(150);	
+
+		ret = com_to_audio(pmuic);
+		pmuic->attached_dev = new_dev;
+
+		/* send event jack type to upper layer */
+	} else {
+	/*	Earkey processing	*/
+		int code = 0;
+		switch(new_dev) {
+			case ATTACHED_DEV_SEND_MUIC:
+				code = KEY_MEDIA;
+				pmuic->old_keycode = code;
+				break;
+			case ATTACHED_DEV_VOLDN_MUIC:
+				code = KEY_VOLUMEDOWN;
+				pmuic->old_keycode = code;
+				break;
+			case ATTACHED_DEV_VOLUP_MUIC:
+				code = KEY_VOLUMEUP;
+				pmuic->old_keycode = code;
+				break;
+			default:
+				pr_warn("%s:%s unsupported dev=%dn",
+						MUIC_DEV_NAME, __func__, new_dev);
+				break;
+		}
+		/* send event sendend key type to upper layer */
+		input_event(pmuic->input, EV_KEY, code, pmuic->is_earkeypressed);
+		input_sync(pmuic->input);
+	}
+
+	return 0;
+}
+
+int detach_earjack(muic_data_t *pmuic)
+{
+	int ret = 0;
+
+	pr_info("%s:%s attached_dev type(%d)\n", MUIC_DEV_NAME, __func__,
+			pmuic->attached_dev);
+
+	ret = com_to_open_with_vbus(pmuic);
+	if (ret < 0) {
+		pr_err("%s:%s fail.(%d)\n", MUIC_DEV_NAME, __func__, ret);
+		return ret;
+	}
+	pmuic->is_earkeypressed = false;
+
+	input_event(pmuic->input, EV_KEY, pmuic->old_keycode, pmuic->is_earkeypressed);
+	input_sync(pmuic->input);
+
+	pmuic->old_keycode = 0;
+
+	set_adc_scan_mode(pmuic, ADC_SCANMODE_ONESHOT);
+	pmuic->attached_dev = ATTACHED_DEV_NONE_MUIC;
+
+	return 0;
+}
+#endif
 int attach_gamepad(muic_data_t *pmuic,
 			muic_attached_dev_t new_dev)
 {
@@ -707,15 +835,6 @@ int attach_deskdock(muic_data_t *pmuic,
 
 	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
 
-	/* Audio-out doesn't work under AUTO switch mode, so turn it off */
-	/* set MANUAL SW mode */
-	set_switch_mode(pmuic,SWMODE_MANUAL);
-	ret = com_to_audio(pmuic);
-	if (ret < 0) {
-		pr_err("%s:%s fail.(%d)\n", MUIC_DEV_NAME, __func__, ret);
-		return ret;
-	}
-
 	pmuic->attached_dev = new_dev;
 
 	return ret;
@@ -727,7 +846,6 @@ int detach_deskdock(muic_data_t *pmuic)
 
 	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
 
-	set_switch_mode(pmuic,SWMODE_AUTO);
 	pmuic->attached_dev = ATTACHED_DEV_NONE_MUIC;
 
 	return ret;

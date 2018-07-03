@@ -3,7 +3,7 @@
 
 ## AnyKernel setup
 # EDIFY properties
-kernel.string=OCDKernel by davecotefilm @ XDA
+kernel.string=ToxicKernel by davecotefilm @ XDA
 do.devicecheck=0
 do.initd=0
 do.modules=1

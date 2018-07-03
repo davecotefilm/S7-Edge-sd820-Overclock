@@ -668,7 +668,7 @@ static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe)
 	u8 buf[4];
 	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
 
-	if ((p->frequency < 950000) || (p->frequency > 2342400))
+	if ((p->frequency < 950000) || (p->frequency > 2150000))
 		return -EINVAL;
 
 	div = (p->frequency + (500 - 1)) / 500;	/* round correctly */
@@ -686,7 +686,7 @@ static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe)
 		buf[3] |= 0x40;
 	else if (p->frequency < 2050000)
 		buf[3] |= 0x80;
-	else if (p->frequency < 2342400)
+	else if (p->frequency < 2150000)
 		buf[3] |= 0xC0;
 
 	if (fe->ops.i2c_gate_ctrl)

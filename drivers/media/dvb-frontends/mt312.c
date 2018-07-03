@@ -750,7 +750,7 @@ static struct dvb_frontend_ops mt312_ops = {
 	.info = {
 		.name = "Zarlink ???? DVB-S",
 		.frequency_min = 950000,
-		.frequency_max = 2342400,
+		.frequency_max = 2150000,
 		/* FIXME: adjust freq to real used xtal */
 		.frequency_stepsize = (MT312_PLL_CLK / 1000) / 128,
 		.symbol_rate_min = MT312_SYS_CLK / 128, /* FIXME as above */

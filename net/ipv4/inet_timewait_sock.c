@@ -18,6 +18,28 @@
 
 
 /**
+ *	inet_twsk_unhash - unhash a timewait socket from established hash
+ *	@tw: timewait socket
+ *
+ *	unhash a timewait socket from established hash, if hashed.
+ *	ehash lock must be held by caller.
+ *	Returns 1 if caller should call inet_twsk_put() after lock release.
+ */
+int inet_twsk_unhash(struct inet_timewait_sock *tw)
+{
+	if (hlist_nulls_unhashed(&tw->tw_node))
+		return 0;
+
+	hlist_nulls_del_rcu(&tw->tw_node);
+	sk_nulls_node_init(&tw->tw_node);
+	/*
+	 * We cannot call inet_twsk_put() ourself under lock,
+	 * caller must call it for us.
+	 */
+	return 1;
+}
+
+/**
  *	inet_twsk_bind_unhash - unhash a timewait socket from bind hash
  *	@tw: timewait socket
  *	@hashinfo: hashinfo pointer
@@ -246,9 +268,9 @@ void inet_twsk_schedule(struct inet_timewait_sock *tw, const int timeo)
 
 	tw->tw_kill = timeo <= 4*HZ;
 	if (!mod_timer_pinned(&tw->tw_timer, jiffies + timeo)) {
+		atomic_inc(&tw->tw_refcnt);
 		atomic_inc(&tw->tw_dr->tw_count);
 	}
-	atomic_inc(&tw->tw_refcnt);
 }
 EXPORT_SYMBOL_GPL(inet_twsk_schedule);
 

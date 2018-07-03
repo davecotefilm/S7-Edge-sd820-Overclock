@@ -94,7 +94,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	/* keep this for memory release */
 	buffer->priv_virt = info;
-	dev_dbg(dev, "Allocate buffer %p\n", buffer);
+	dev_dbg(dev, "Allocate buffer %pK\n", buffer);
 	return 0;
 
 err:
@@ -107,7 +107,7 @@ static void ion_cma_free(struct ion_buffer *buffer)
 	struct device *dev = buffer->heap->priv;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	dev_dbg(dev, "Release buffer %p\n", buffer);
+	dev_dbg(dev, "Release buffer %pK\n", buffer);
 	/* release memory */
 	dma_free_coherent(dev, buffer->size, info->cpu_addr, info->handle);
 	sg_free_table(info->table);
@@ -123,7 +123,7 @@ static int ion_cma_phys(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct device *dev = heap->priv;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	dev_dbg(dev, "Return buffer %p physical address %pa\n", buffer,
+	dev_dbg(dev, "Return buffer %pK physical address %pa\n", buffer,
 		&info->handle);
 
 	*addr = info->handle;
@@ -300,15 +300,37 @@ err:
 	return ret;
 }
 
+static int ion_secure_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,
+			struct vm_area_struct *vma)
+{
+	pr_info("%s: Mapping from secure heap %s disallowed\n",
+		__func__, mapper->name);
+	return -EINVAL;
+}
+
+static void *ion_secure_cma_map_kernel(struct ion_heap *heap,
+				struct ion_buffer *buffer)
+{
+	pr_info("%s: Kernel mapping from secure heap %s disallowed\n",
+		__func__, heap->name);
+	return ERR_PTR(-EINVAL);
+}
+
+static void ion_secure_cma_unmap_kernel(struct ion_heap *heap,
+				 struct ion_buffer *buffer)
+{
+	return;
+}
+
 static struct ion_heap_ops ion_secure_cma_ops = {
 	.allocate = ion_secure_cma_allocate,
 	.free = ion_secure_cma_free,
 	.map_dma = ion_cma_heap_map_dma,
 	.unmap_dma = ion_cma_heap_unmap_dma,
 	.phys = ion_cma_phys,
-	.map_user = ion_cma_mmap,
-	.map_kernel = ion_cma_map_kernel,
-	.unmap_kernel = ion_cma_unmap_kernel,
+	.map_user = ion_secure_cma_mmap,
+	.map_kernel = ion_secure_cma_map_kernel,
+	.unmap_kernel = ion_secure_cma_unmap_kernel,
 	.print_debug = ion_cma_print_debug,
 };
 

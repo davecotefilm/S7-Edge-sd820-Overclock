@@ -63,6 +63,8 @@ enum sec_battery_capacity_mode {
 	SEC_BATTERY_CAPACITY_AGEDCELL,
 	/* charge count */
 	SEC_BATTERY_CAPACITY_CYCLE,
+	/* full capacity rep */
+	SEC_BATTERY_CAPACITY_FULL,
 };
 
 enum sec_wireless_info_mode {
@@ -160,6 +162,7 @@ enum sec_battery_adc_channel {
 	SEC_BAT_ADC_CHANNEL_DISCHARGING_NTC,
 	SEC_BAT_ADC_CHANNEL_WPC_TEMP,
 	SEC_BAT_ADC_CHANNEL_SLAVE_CHG_TEMP,
+	SEC_BAT_ADC_CHANNEL_COIL_TEMP,
 	SEC_BAT_ADC_CHANNEL_NUM,
 };
 
@@ -192,6 +195,12 @@ enum sec_battery_chg_temp_state {
 enum sec_battery_wpc_pad_state {
 	SEC_BATTERY_WPC_TEMP_NONE = 0,
 	SEC_BATTERY_WPC_TEMP_HIGH,
+};
+
+/* bat_temp state */
+enum sec_battery_bat_temp_state {
+	SEC_BATTERY_MIX_TEMP_NONE = 0,
+	SEC_BATTERY_MIX_TEMP_HIGH,
 };
 
 /* heat_limit state */
@@ -583,6 +592,9 @@ struct sec_battery_platform_data {
 	unsigned int swelling_drop_float_voltage;
 	unsigned int swelling_high_rechg_voltage;
 	unsigned int swelling_low_rechg_voltage;
+	unsigned int swelling_drop_voltage_condition;
+	unsigned int swelling_wc_low_temp_current;
+	unsigned int swelling_wc_high_temp_current;
 
 #if defined(CONFIG_CALC_TIME_TO_FULL)
 	unsigned int ttf_hv_charge_current;
@@ -605,13 +617,6 @@ struct sec_battery_platform_data {
 	int force_discharging_recov;
 	int factory_discharging;
 	unsigned int self_discharging_type;
-#if defined(CONFIG_SW_SELF_DISCHARGING)
-	/* sw self discharging */
-	int self_discharging_temp_block;
-	int self_discharging_volt_block;
-	int self_discharging_temp_recov;
-	int self_discharging_temp_pollingtime;
-#endif
 
 	/* Monitor setting */
 	sec_battery_monitor_polling_t polling_type;
@@ -662,6 +667,7 @@ struct sec_battery_platform_data {
 	unsigned int chg_temp_check; /* Control the charging current depending on the chg_thm */
 	unsigned int chg_thermal_source; /* To confirm the charger temperature */
 	unsigned int wpc_temp_check;
+	unsigned int mix_temp_check;
 	unsigned int wpc_thermal_source; /* To confirm the wpc temperature */
 	unsigned int slave_chg_temp_check;
 	unsigned int slave_thermal_source; /* To confirm the slave charger temperature */
@@ -684,27 +690,33 @@ struct sec_battery_platform_data {
 	int temp_high_recovery_lpm;
 	int temp_low_threshold_lpm;
 	int temp_low_recovery_lpm;
+
+	int wpc_high_threshold_normal;
+	int wpc_high_recovery_normal;
+	int wpc_low_threshold_normal;
+	int wpc_low_recovery_normal;
+
 	int chg_high_temp_1st;
 	int chg_high_temp_2nd;
 	int chg_high_temp_recovery;
 	unsigned int chg_charging_limit_current;
 	unsigned int chg_charging_limit_current_2nd;
-	unsigned int chg_skip_check_time;
-	unsigned int chg_skip_check_capacity;
 	int wpc_high_temp;
 	int wpc_high_temp_recovery;
-	int wpc_heat_temp_recovery;
 	int wpc_lcd_on_high_temp;
 	int wpc_lcd_on_high_temp_rec;
-	unsigned int wpc_hv_lcd_on_input_limit_current;
 	unsigned int wpc_charging_limit_current;
 	unsigned int sleep_mode_limit_current;
 	unsigned int wc_full_input_limit_current;
-	unsigned int wc_heating_input_limit_current;
-	unsigned int wc_heating_time;
 	unsigned int wc_cv_current;
-	unsigned int wpc_skip_check_time;
-	unsigned int wpc_skip_check_capacity;
+	int mix_high_tbat;
+	int mix_high_tchg;
+	int mix_high_tbat_recov;
+	unsigned int mix_input_limit_current;
+	int mix_high_tbat_hv;
+	int mix_high_tchg_hv;
+	int mix_high_tbat_recov_hv;
+	unsigned int mix_input_limit_current_hv;
 
 	/* If these is NOT full check type or NONE full check type,
 	 * it is skipped
@@ -735,6 +747,9 @@ struct sec_battery_platform_data {
 	unsigned long recharging_total_time;
 	/* reset charging for abnormal malfunction (0: not use) */
 	unsigned long charging_reset_time;
+	unsigned int hv_charging_total_time;
+	unsigned int normal_charging_total_time;
+	unsigned int usb_charging_total_time;
 
 	/* fuel gauge */
 	char *fuelgauge_name;
@@ -796,6 +811,7 @@ struct sec_battery_platform_data {
 	sec_charger_functions_t chg_functions_setting;
 
 	bool fake_capacity;
+	unsigned int enable_coil_temp;
 
 	/* ADC setting */
 	unsigned int adc_check_count;
@@ -819,10 +835,28 @@ struct sec_charger_platform_data {
 	int chg_float_voltage;
 	int irq_gpio;
 	int chg_irq;
+	int wpc_det;
 	unsigned long chg_irq_attr;
 
 	/* otg_en setting */
 	int otg_en;
+
+	int siop_call_cc_current;
+	int siop_call_cv_current;
+
+	int wpc_charging_limit_current;
+	int sleep_mode_limit_current;
+
+	int siop_input_limit_current;
+	int siop_charging_limit_current;
+	int siop_hv_input_limit_current;
+	int siop_hv_charging_limit_current;
+	int siop_wireless_input_limit_current;
+	int siop_wireless_charging_limit_current;
+	int siop_hv_wireless_input_limit_current;
+	int siop_hv_wireless_charging_limit_current;
+
+	bool support_slow_charging;
 
 	/* OVP/UVLO check */
 	sec_battery_ovp_uvlo_t ovp_uvlo_check_type;

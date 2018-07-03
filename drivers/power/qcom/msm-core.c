@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -193,7 +193,7 @@ static void core_temp_notify(enum thermal_trip_type type,
 	trace_temp_notification(cpu_node->sensor_id,
 		type, temp, cpu_node->temp);
 
-	cpu_node->temp = temp;
+	cpu_node->temp = temp / scaling_factor;
 
 	complete(&sampling_completion);
 }
@@ -356,6 +356,19 @@ static void clear_static_power(struct cpu_static_info *sp)
 	kfree(sp);
 }
 
+BLOCKING_NOTIFIER_HEAD(msm_core_stats_notifier_list);
+
+struct blocking_notifier_head *get_power_update_notifier(void)
+{
+	return &msm_core_stats_notifier_list;
+}
+
+int register_cpu_pwr_stats_ready_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&msm_core_stats_notifier_list,
+						nb);
+}
+
 static int update_userspace_power(struct sched_params __user *argp)
 {
 	int i;
@@ -364,6 +377,7 @@ static int update_userspace_power(struct sched_params __user *argp)
 	struct cpu_activity_info *node;
 	struct cpu_static_info *sp, *clear_sp;
 	int cpumask, cluster, mpidr;
+	bool pdata_valid[NR_CPUS] = {0};
 
 	get_user(cpumask, &argp->cpumask);
 	get_user(cluster, &argp->cluster);
@@ -414,8 +428,8 @@ static int update_userspace_power(struct sched_params __user *argp)
 	/* Copy the same power values for all the cpus in the cpumask
 	 * argp->cpumask within the cluster (argp->cluster)
 	 */
-	spin_lock(&update_lock);
 	get_user(cpumask, &argp->cpumask);
+	spin_lock(&update_lock);
 	for (i = 0; i < MAX_CORES_PER_CLUSTER; i++, cpumask >>= 1) {
 		if (!(cpumask & 0x01))
 			continue;
@@ -435,9 +449,18 @@ static int update_userspace_power(struct sched_params __user *argp)
 			}
 			cpu_stats[cpu].ptable = per_cpu(ptable, cpu);
 			repopulate_stats(cpu);
+			pdata_valid[cpu] = true;
 		}
 	}
 	spin_unlock(&update_lock);
+
+	for_each_possible_cpu(cpu) {
+		if (pdata_valid[cpu])
+			continue;
+
+		blocking_notifier_call_chain(
+			&msm_core_stats_notifier_list, cpu, NULL);
+	}
 
 	activate_power_table = true;
 	return 0;
@@ -463,9 +486,9 @@ static long msm_core_ioctl(struct file *file, unsigned int cmd,
 		return -EINVAL;
 
 	get_user(cluster, &argp->cluster);
-	mpidr = (argp->cluster << (MAX_CORES_PER_CLUSTER *
+	mpidr = (cluster << (MAX_CORES_PER_CLUSTER *
 			MAX_NUM_OF_CLUSTERS));
-	cpumask = argp->cpumask;
+	get_user(cpumask, &argp->cpumask);
 
 	switch (cmd) {
 	case EA_LEAKAGE:
@@ -562,6 +585,7 @@ static int msm_core_stats_init(struct device *dev, int cpu)
 		pstate[i].freq = cpu_node->sp->table[i].frequency;
 
 	per_cpu(ptable, cpu) = pstate;
+
 	return 0;
 }
 

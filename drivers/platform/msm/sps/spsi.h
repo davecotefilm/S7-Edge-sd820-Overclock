@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -51,6 +51,9 @@
 
 #define MAX_MSG_LEN 80
 #define SPS_IPC_LOGPAGES 10
+#define SPS_IPC_REG_DUMP_FACTOR 3
+#define SPS_IPC_DEFAULT_LOGLEVEL 3
+#define SPS_IPC_MAX_LOGLEVEL 4
 
 /* Connection mapping control struct */
 struct sps_rm {
@@ -132,12 +135,15 @@ extern u8 print_limit_option;
 				ipc_log_string((dev)->ipc_log4, \
 					"%s: " msg, __func__, args); \
 			else \
-				pr_err("sps: no such IPC logging index!\n"); \
+				pr_debug("sps: no such IPC logging index!\n"); \
 		} \
 	} while (0)
 #define SPS_DUMP(msg, args...) do {					\
 		SPS_IPC(4, sps, msg, args); \
-		pr_info(msg, ##args);	\
+		if (sps) { \
+			if (sps->ipc_log4 == NULL) \
+				pr_info(msg, ##args);	\
+		} \
 	} while (0)
 #define SPS_DEBUGFS(msg, args...) do {					\
 		char buf[MAX_MSG_LEN];		\

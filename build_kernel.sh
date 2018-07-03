@@ -18,7 +18,9 @@ DTS_DIR=$BUILDING_DIR/arch/arm64/boot/dts/samsung
 ANYKERNEL_DIR=$ROOT_DIR/anykernel-prebuilt
 TEMP_DIR=$OUT_DIR/temp
 
-DEFCONFIG=$1/davecotefilm_hero2qlte_chnzc_defconfig
+DEFCONFIG=$1/davecotefilm_hero2qlte_chn_open_defconfig
+#davecotefilm_hero2qlte_chn_open_defconfig
+#davecotefilm_hero2qlte_usa_tmo_defconfig
 
 FUNC_PRINT()
 {
@@ -60,8 +62,8 @@ FUNC_PACK()
 		mkdir $TEMP_DIR/modules
 		find . -type f -name "*.ko" | xargs cp -t $TEMP_DIR/modules
 		cd $TEMP_DIR
-		zip -r OCDKernel.zip ./*
-		mv OCDKernel.zip $OUT_DIR/OCDKernel.zip
+		zip -r ToxicKernel.zip ./*
+		mv ToxicKernel.zip $OUT_DIR/ToxicKernel.zip
 		cd $ROOT_DIR
 		FUNC_PRINT "Finish Packing"
 }
@@ -73,5 +75,5 @@ FUNC_BUILD_DTB
 FUNC_PACK
 END_TIME=`date +%s`
 
-let "ELAPSED_TIME=$END_TIME-$START_TIME"
+#let "ELAPSED_TIME=$END_TIME-$START_TIME"
 echo "Total compile time is $ELAPSED_TIME seconds"

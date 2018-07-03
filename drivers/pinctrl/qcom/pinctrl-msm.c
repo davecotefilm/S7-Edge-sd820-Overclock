@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013, Sony Mobile Communications AB.
- * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/syscore_ops.h>
 #include <linux/reboot.h>
 #include <linux/irqchip/msm-mpm-irq.h>
 #include "../core.h"
@@ -47,6 +48,7 @@
 
 #define MAX_NR_GPIO 300
 #define PS_HOLD_OFFSET 0x820
+#define TLMM_EBI2_EMMC_GPIO_CFG 0x111000
 
 /**
  * struct msm_pinctrl - state for a pinctrl-msm device
@@ -80,6 +82,8 @@ struct msm_pinctrl {
 	const struct msm_pinctrl_soc_data *soc;
 	void __iomem *regs;
 };
+
+static struct msm_pinctrl *msm_pinctrl_data;
 
 static inline struct msm_pinctrl *to_msm_pinctrl(struct gpio_chip *gc)
 {
@@ -206,6 +210,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*mask = 7;
 		break;
 	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_INPUT_ENABLE:
 		*bit = g->oe_bit;
 		*mask = 1;
 		break;
@@ -289,6 +294,12 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		val = readl(pctrl->regs + g->io_reg);
 		arg = !!(val & BIT(g->in_bit));
 		break;
+	case PIN_CONFIG_INPUT_ENABLE:
+		/* Pin is output */
+		if (arg)
+			return -EINVAL;
+		arg = 1;
+		break;
 	default:
 		dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
 			param);
@@ -360,6 +371,10 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 
 			/* enable output */
 			arg = 1;
+			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+			/* disable output */
+			arg = 0;
 			break;
 		default:
 			dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
@@ -556,6 +571,12 @@ void msm_gp_get_cfg(struct gpio_chip *chip, uint pin_no, struct gpiomux_setting 
 		return;
 #endif
 
+#ifdef ENABLE_IRIS_SECURE_I2C_GPIO
+	if (pin_no >= CONFIG_IRIS_I2C_GPIO_START
+		&& pin_no <= CONFIG_IRIS_I2C_GPIO_END)
+		return;
+#endif
+
 #ifdef CONFIG_ESE_SECURE
 	if (pin_no >= CONFIG_ESE_SPI_GPIO_START
 		&& pin_no <= CONFIG_ESE_SPI_GPIO_END) {
@@ -588,8 +609,15 @@ int msm_gp_get_value(struct gpio_chip *chip, uint pin_no, int in_out_type)
 		&& pin_no <= CONFIG_SENSORS_FP_SPI_GPIO_END)
 		return 0;
 #endif
+
 #ifdef CONFIG_MST_LDO
 	if (pin_no == MST_GPIO_D_MINUS || pin_no == MST_GPIO_D_PLUS)
+		return 0;
+#endif
+
+#ifdef ENABLE_IRIS_SECURE_I2C_GPIO
+	if (pin_no >= CONFIG_IRIS_I2C_GPIO_START
+		&& pin_no <= CONFIG_IRIS_I2C_GPIO_END)
 		return 0;
 #endif
 
@@ -657,6 +685,21 @@ static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 		if (gpio >= CONFIG_SENSORS_FP_SPI_GPIO_START
 			&& gpio <= CONFIG_SENSORS_FP_SPI_GPIO_END)
+			continue;
+#endif
+
+#ifdef ENABLE_IRIS_SECURE_I2C_GPIO
+		if (gpio >= CONFIG_IRIS_I2C_GPIO_START
+			&& gpio <= CONFIG_IRIS_I2C_GPIO_END)
+			continue;
+#endif
+#ifdef CONFIG_MST_LDO
+		if (gpio == MST_GPIO_D_MINUS || gpio == MST_GPIO_D_PLUS)
+			continue;
+#endif
+#ifdef CONFIG_ESE_SECURE
+		if (gpio >= CONFIG_ESE_SPI_GPIO_START
+			&& gpio <= CONFIG_ESE_SPI_GPIO_END)
 			continue;
 #endif
 		msm_gpio_dbg_show_one(s, NULL, chip, i, gpio);
@@ -919,12 +962,21 @@ static struct irq_chip msm_gpio_irq_chip = {
 	.irq_set_wake   = msm_gpio_irq_set_wake,
 };
 
+#ifdef CONFIG_SEC_PM
+int wakeup_gpio_irq_flag = 0;
+extern char last_resume_kernel_reason[];
+extern int last_resume_kernel_reason_len;
+#endif
+
 static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	const struct msm_pingroup *g;
 	struct msm_pinctrl *pctrl = to_msm_pinctrl(gc);
 	struct irq_chip *chip = irq_get_chip(irq);
+#ifdef CONFIG_SEC_PM
+	struct irq_desc *desc_g;
+#endif
 	int irq_pin;
 	int handled = 0;
 	u32 val;
@@ -941,6 +993,27 @@ static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		val = readl(pctrl->regs + g->intr_status_reg);
 		if (val & BIT(g->intr_status_bit)) {
 			irq_pin = irq_find_mapping(gc->irqdomain, i);
+#ifdef CONFIG_SEC_PM
+			desc_g = irq_to_desc(irq_pin);
+			if (wakeup_gpio_irq_flag == 1) {
+				if (desc_g && desc_g->action && desc_g->action->name) {
+					pr_warn("Resume caused by GPIO %d(irq %d), %s\n",
+							irq_pin, irq, desc_g->action->name);
+					last_resume_kernel_reason_len += 
+							sprintf(last_resume_kernel_reason + last_resume_kernel_reason_len,
+							"GPIO %d(irq %d), %s|",
+							irq_pin, irq, desc_g->action->name);
+				} else {
+					pr_warn("Resume caused by GPIO %d(irq %d)\n",
+							irq_pin, irq);
+					last_resume_kernel_reason_len += 
+							sprintf(last_resume_kernel_reason + last_resume_kernel_reason_len,
+							"GPIO %d(irq %d)|",
+							irq_pin, irq);
+				}
+				wakeup_gpio_irq_flag = 0;
+			}
+#endif
 			generic_handle_irq(irq_pin);
 			handled++;
 		}
@@ -1043,14 +1116,72 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 		}
 }
 
+static void msm_pinctrl_ebi2_emmc_enable(struct msm_pinctrl *pctrl,
+					unsigned int tlmm_emmc_boot_select)
+{
+	u32 val;
+
+	val = readl_relaxed(pctrl->regs + TLMM_EBI2_EMMC_GPIO_CFG);
+	val |= BIT(tlmm_emmc_boot_select);
+	writel_relaxed(val, pctrl->regs + TLMM_EBI2_EMMC_GPIO_CFG);
+}
+
+#ifdef CONFIG_PM
+static int msm_pinctrl_suspend(void)
+{
+	return 0;
+}
+
+static void msm_pinctrl_resume(void)
+{
+	int i, irq;
+	u32 val;
+	unsigned long flags;
+	struct irq_desc *desc;
+	const struct msm_pingroup *g;
+	const char *name = "null";
+	struct msm_pinctrl *pctrl = msm_pinctrl_data;
+
+	if (!msm_show_resume_irq_mask)
+		return;
+
+	spin_lock_irqsave(&pctrl->lock, flags);
+	for_each_set_bit(i, pctrl->enabled_irqs, pctrl->chip.ngpio) {
+		g = &pctrl->soc->groups[i];
+		val = readl_relaxed(pctrl->regs + g->intr_status_reg);
+		if (val & BIT(g->intr_status_bit)) {
+			irq = irq_find_mapping(pctrl->chip.irqdomain, i);
+			desc = irq_to_desc(irq);
+			if (desc == NULL)
+				name = "stray irq";
+			else if (desc->action && desc->action->name)
+				name = desc->action->name;
+
+			pr_warn("%s: %d triggered %s\n", __func__, irq, name);
+		}
+	}
+	spin_unlock_irqrestore(&pctrl->lock, flags);
+}
+#else
+#define msm_pinctrl_suspend NULL
+#define msm_pinctrl_resume NULL
+#endif
+
+static struct syscore_ops msm_pinctrl_pm_ops = {
+	.suspend = msm_pinctrl_suspend,
+	.resume = msm_pinctrl_resume,
+};
+
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data)
 {
 	struct msm_pinctrl *pctrl;
 	struct resource *res;
 	int ret;
+	u32 tlmm_emmc_boot_select;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	msm_pinctrl_data = pctrl = devm_kzalloc(&pdev->dev,
+				sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl) {
 		dev_err(&pdev->dev, "Can't allocate msm_pinctrl\n");
 		return -ENOMEM;
@@ -1067,6 +1198,11 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 		return PTR_ERR(pctrl->regs);
 
 	msm_pinctrl_setup_pm_reset(pctrl);
+	if (!of_property_read_u32(pctrl->dev->of_node,
+					"qcom,tlmm-emmc-boot-select",
+						&tlmm_emmc_boot_select)) {
+		msm_pinctrl_ebi2_emmc_enable(pctrl, tlmm_emmc_boot_select);
+	}
 
 	pctrl->irq = platform_get_irq(pdev, 0);
 	if (pctrl->irq < 0) {
@@ -1091,6 +1227,7 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	pctrl->irq_chip_extn = &mpm_pinctrl_extn;
 	platform_set_drvdata(pdev, pctrl);
 
+	register_syscore_ops(&msm_pinctrl_pm_ops);
 	dev_dbg(&pdev->dev, "Probed Qualcomm pinctrl driver\n");
 
 	return 0;
@@ -1105,6 +1242,7 @@ int msm_pinctrl_remove(struct platform_device *pdev)
 	pinctrl_unregister(pctrl->pctrl);
 
 	unregister_restart_handler(&pctrl->restart_nb);
+	unregister_syscore_ops(&msm_pinctrl_pm_ops);
 
 	return 0;
 }

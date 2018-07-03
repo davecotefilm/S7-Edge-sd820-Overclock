@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -365,7 +365,7 @@ static __ref int watchdog_kthread(void *arg)
 {
 	struct msm_watchdog_data *wdog_dd =
 		(struct msm_watchdog_data *)arg;
-	unsigned long delay_time;
+	unsigned long delay_time = 0;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO-1};
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
@@ -726,6 +726,19 @@ static void dump_pdata(struct msm_watchdog_data *pdata)
 
 #if CONFIG_SEC_BSP
 extern int console_enabled;
+#endif
+
+#ifdef CONFIG_USER_RESET_DEBUG_TEST
+void force_watchdog_bark(void)
+{
+	u64 timeout;
+
+	wdog_data->bark_time = 3000; 
+	timeout = (wdog_data->bark_time * WDT_HZ)/1000;
+	__raw_writel(timeout, wdog_data->base + WDT0_BARK_TIME);
+	pr_err("%s force set bark time [%d]\n", __func__, wdog_data->bark_time);
+}
+EXPORT_SYMBOL(force_watchdog_bark);
 #endif
 
 static int msm_wdog_dt_to_pdata(struct platform_device *pdev,

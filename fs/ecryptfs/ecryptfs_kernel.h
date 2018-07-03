@@ -45,6 +45,14 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #endif
+#ifdef CONFIG_DLP
+#include "ecryptfs_dlp.h"
+#endif
+
+#ifdef CONFIG_ECRYPTFS_FEK_INTEGRITY
+#define HASH_OFFSET 512
+#define FEK_HASH_SIZE 32
+#endif
 
 #ifdef CONFIG_WTL_ENCRYPTION_FILTER
 #define ENC_NAME_FILTER_MAX_INSTANCE 5
@@ -62,6 +70,9 @@
 #define ECRYPTFS_DEFAULT_NUM_USERS 4
 #define ECRYPTFS_MAX_NUM_USERS 32768
 #define ECRYPTFS_XATTR_NAME "user.ecryptfs"
+
+#define ECRYPTFS_BASE_PATH_SIZE 1024
+#define ECRYPTFS_LABEL_SIZE 1024
 
 #ifdef CONFIG_SDP
 #define PKG_NAME_SIZE 16
@@ -284,6 +295,9 @@ struct ecryptfs_crypt_stat {
 	unsigned char cipher[ECRYPTFS_MAX_CIPHER_NAME_SIZE + 1];
 	unsigned char key[ECRYPTFS_MAX_KEY_BYTES];
 	unsigned char root_iv[ECRYPTFS_MAX_IV_BYTES];
+#ifdef CONFIG_ECRYPTFS_FEK_INTEGRITY
+	unsigned char hash[FEK_HASH_SIZE];
+#endif
 	struct list_head keysig_list;
 	struct mutex keysig_list_mutex;
 	struct mutex cs_tfm_mutex;
@@ -293,6 +307,9 @@ struct ecryptfs_crypt_stat {
 #ifdef CONFIG_SDP
 	int engine_id;
 	dek_t sdp_dek;
+#endif
+#ifdef CONFIG_DLP
+	struct knox_dlp_data expiry;
 #endif
 };
 
@@ -430,11 +447,31 @@ struct ecryptfs_mount_crypt_stat {
 
 };
 
+#define ECRYPTFS_OVERRIDE_ROOT_CRED(saved_cred) \
+	saved_cred = ecryptfs_override_fsids(0, 0); \
+	if (!saved_cred) { return -ENOMEM; }
+
+#define ECRYPTFS_REVERT_CRED(saved_cred)	ecryptfs_revert_fsids(saved_cred)
+
+typedef enum {
+	TYPE_E_NONE,
+	TYPE_E_DEFAULT,
+	TYPE_E_READ,
+	TYPE_E_WRITE,
+} propagate_type_t;
+
+struct ecryptfs_propagate_stat {
+	char base_path[ECRYPTFS_BASE_PATH_SIZE];
+	propagate_type_t propagate_type;
+	char label[ECRYPTFS_LABEL_SIZE];
+};
+
 /* superblock private data. */
 struct ecryptfs_sb_info {
 	struct super_block *wsi_sb;
 	struct ecryptfs_mount_crypt_stat mount_crypt_stat;
 	struct backing_dev_info bdi;
+	struct ecryptfs_propagate_stat propagate_stat;
 #ifdef CONFIG_SDP
 	int userid;
 #endif
@@ -671,6 +708,7 @@ extern const struct inode_operations ecryptfs_main_iops;
 extern const struct inode_operations ecryptfs_dir_iops;
 extern const struct inode_operations ecryptfs_symlink_iops;
 extern const struct super_operations ecryptfs_sops;
+extern const struct super_operations ecryptfs_multimount_sops;
 extern const struct dentry_operations ecryptfs_dops;
 extern const struct address_space_operations ecryptfs_aops;
 extern int ecryptfs_verbosity;
@@ -708,7 +746,10 @@ int ecryptfs_encrypt_and_encode_filename(
 	const char *name, size_t name_size);
 struct dentry *ecryptfs_lower_dentry(struct dentry *this_dentry);
 void ecryptfs_dump_hex(char *data, int bytes);
-void ecryptfs_dump_salt_hex(char *data, int key_size, char *cipher);
+void ecryptfs_dump_salt_hex(char *data, int key_size,
+		const struct ecryptfs_crypt_stat *crypt_stat);
+extern void ecryptfs_dump_cipher(struct ecryptfs_crypt_stat *stat);
+
 int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 			int sg_size);
 int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat);
@@ -741,6 +782,11 @@ int ecryptfs_generate_key_packet_set(char *dest_base,
 int
 ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
+/* Do not directly use this function. Use ECRYPTFS_OVERRIDE_CRED() instead. */
+const struct cred * ecryptfs_override_fsids(uid_t fsuid, gid_t fsgid);
+/* Do not directly use this function, use ECRYPTFS_REVERT_CRED() instead. */
+void ecryptfs_revert_fsids(const struct cred * old_cred);
+
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
 ssize_t
 ecryptfs_getxattr_lower(struct dentry *lower_dentry, const char *name,
@@ -877,16 +923,20 @@ void ecryptfs_freepage(struct page *page);
 
 struct ecryptfs_events *get_events(void);
 
-size_t ecryptfs_get_salt_size_for_cipher(const char *cipher);
+size_t ecryptfs_get_salt_size_for_cipher(
+		const struct ecryptfs_crypt_stat *crypt_stat);
+
+size_t ecryptfs_get_salt_size_for_cipher_mount(
+		const struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
 
 size_t ecryptfs_get_key_size_to_enc_data(
-		struct ecryptfs_crypt_stat *crypt_stat);
+		const struct ecryptfs_crypt_stat *crypt_stat);
 
 size_t ecryptfs_get_key_size_to_store_key(
-		struct ecryptfs_crypt_stat *crypt_stat);
+		const struct ecryptfs_crypt_stat *crypt_stat);
 
 size_t ecryptfs_get_key_size_to_restore_key(size_t stored_key_size,
-		const char *cipher);
+		const struct ecryptfs_crypt_stat *crypt_stat);
 
 bool ecryptfs_check_space_for_salt(const size_t key_size,
 		const size_t salt_size);

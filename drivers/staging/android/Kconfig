@@ -32,6 +32,13 @@ config ANDROID_BINDER_IPC_32BIT
 
 	  Note that enabling this will break newer Android user-space.
 
+config SEC_TRACE_BINDERCNT
+	bool "Trace process binder count"
+	default n
+	---help---
+	  This feature can be used to monitor binder transactions count to
+	  a designated process.
+
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n
@@ -84,11 +91,10 @@ config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
 	  /sys/module/lowmemorykiller/parameters/adj and convert them
 	  to oom_score_adj values.
 
-config SEC_OOM_KILLER
-	bool "Android OOM Killer"
+config SEC_TIMEOUT_LOW_MEMORY_KILLER
+	bool "Android timeout Low Memory Killer"
 	default n
 	help
-	 klaatu@samsung
 	 This enables 'Android-Style oom-killer'
 	 The way to select victim by oom-killer provided by
 	 linux kernel is totally different from android policy.
@@ -120,7 +126,6 @@ config SYNC
 	bool "Synchronization framework"
 	default n
 	select ANON_INODES
-	select DMA_SHARED_BUFFER
 	---help---
 	  This option enables the framework for synchronization between multiple
 	  drivers.  Sync implementations can take advantage of hardware

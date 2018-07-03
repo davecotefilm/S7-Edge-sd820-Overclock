@@ -39,6 +39,7 @@ Copyright (C) 2012, Samsung Electronics. All rights reserved.
 #define NAME_STRING_MAX 30
 #define MDNIE_COLOR_BLINDE_CMD_SIZE 18
 #define COORDINATE_DATA_SIZE 6
+#define MDNIE_NIGHT_MODE_CMD_SIZE 24
 
 extern char mdnie_app_name[][NAME_STRING_MAX];
 extern char mdnie_mode_name[][NAME_STRING_MAX];
@@ -67,6 +68,8 @@ enum APP {
 	GAME_LOW_APP,
 	GAME_MID_APP,
 	GAME_HIGH_APP,
+	VIDEO_ENHANCER,
+	VIDEO_ENHANCER_THIRD,
 	TDMB_APP,	/* is linked to APP_ID_TDMB */
 	MAX_APP_MODE,
 };
@@ -119,6 +122,14 @@ enum HMT_COLOR_TEMPERATURE {
 	HMT_COLOR_TEMP_MAX
 };
 
+enum HDR {
+	HDR_OFF = 0,
+	HDR_1,
+	HDR_2,
+	HDR_3,
+	HDR_MAX
+};
+
 struct mdnie_lite_tun_type {
 	enum BYPASS mdnie_bypass;
 	enum BYPASS cabc_bypass;
@@ -129,10 +140,18 @@ struct mdnie_lite_tun_type {
 	enum OUTDOOR outdoor;
 	enum ACCESSIBILITY mdnie_accessibility;
 	enum HMT_COLOR_TEMPERATURE hmt_color_temperature;
+	enum HDR hdr;
 
 	char scr_white_red;
 	char scr_white_green;
 	char scr_white_blue;
+
+	int scr_white_balanced_red;
+	int scr_white_balanced_green;
+	int scr_white_balanced_blue;
+
+	int night_mode_enable;
+	int night_mode_index;
 
 	int index;
 	struct list_head used_list;
@@ -164,9 +183,11 @@ struct mdnie_lite_tune_data {
 
 	char *DSI0_COLOR_BLIND_MDNIE_1;
 	char *DSI0_COLOR_BLIND_MDNIE_2;
+	char *DSI0_COLOR_BLIND_MDNIE_SCR;
 	char *DSI0_RGB_SENSOR_MDNIE_1;
 	char *DSI0_RGB_SENSOR_MDNIE_2;
 	char *DSI0_RGB_SENSOR_MDNIE_3;
+	char *DSI0_RGB_SENSOR_MDNIE_SCR;
 	char *DSI0_TRANS_DIMMING_MDNIE;
 	char *DSI0_UI_DYNAMIC_MDNIE_2;
 	char *DSI0_UI_STANDARD_MDNIE_2;
@@ -191,6 +212,9 @@ struct mdnie_lite_tune_data {
 	char *DSI0_TDMB_DYNAMIC_MDNIE_2;
 	char *DSI0_TDMB_STANDARD_MDNIE_2;
 	char *DSI0_TDMB_AUTO_MDNIE_2;
+	char *DSI0_NIGHT_MODE_MDNIE_1;
+	char *DSI0_NIGHT_MODE_MDNIE_2;
+	char *DSI0_NIGHT_MODE_MDNIE_SCR;
 
 	struct dsi_cmd_desc *DSI0_BYPASS_MDNIE;
 	struct dsi_cmd_desc *DSI0_NEGATIVE_MDNIE;
@@ -248,9 +272,11 @@ struct mdnie_lite_tune_data {
 	struct dsi_cmd_desc *DSI0_TDMB_NATURAL_MDNIE;
 	struct dsi_cmd_desc *DSI0_TDMB_MOVIE_MDNIE;
 	struct dsi_cmd_desc *DSI0_TDMB_AUTO_MDNIE;
+	struct dsi_cmd_desc *DSI0_NIGHT_MODE_MDNIE;
 
 	struct dsi_cmd_desc *(*mdnie_tune_value_dsi0)[MAX_MODE][MAX_OUTDOOR_MODE];
 	struct dsi_cmd_desc **hmt_color_temperature_tune_value_dsi0;
+	struct dsi_cmd_desc **hdr_tune_value_dsi0;
 
 	int dsi0_bypass_mdnie_size;
 	int mdnie_color_blinde_cmd_offset;
@@ -262,15 +288,24 @@ struct mdnie_lite_tune_data {
 	int dsi0_trans_dimming_data_index;
 	char **dsi0_adjust_ldu_table;
 	int dsi0_max_adjust_ldu;
+	char *dsi0_night_mode_table;
+	int dsi0_max_night_mode_index;
+	int dsi0_scr_step_index;
+	char dsi0_white_default_r;
+	char dsi0_white_default_g;
+	char dsi0_white_default_b;
+	int dsi0_white_rgb_enabled;
 
 /*******************************************
 *					DSI1 DATA
 ********************************************/
 	char *DSI1_COLOR_BLIND_MDNIE_1;
 	char *DSI1_COLOR_BLIND_MDNIE_2;
+	char *DSI1_COLOR_BLIND_MDNIE_SCR;
 	char *DSI1_RGB_SENSOR_MDNIE_1;
 	char *DSI1_RGB_SENSOR_MDNIE_2;
 	char *DSI1_RGB_SENSOR_MDNIE_3;
+	char *DSI1_RGB_SENSOR_MDNIE_SCR;
 	char *DSI1_TRANS_DIMMING_MDNIE;
 	char *DSI1_UI_DYNAMIC_MDNIE_2;
 	char *DSI1_UI_STANDARD_MDNIE_2;
@@ -295,6 +330,9 @@ struct mdnie_lite_tune_data {
 	char *DSI1_TDMB_DYNAMIC_MDNIE_2;
 	char *DSI1_TDMB_STANDARD_MDNIE_2;
 	char *DSI1_TDMB_AUTO_MDNIE_2;
+	char *DSI1_NIGHT_MODE_MDNIE_1;
+	char *DSI1_NIGHT_MODE_MDNIE_2;
+	char *DSI1_NIGHT_MODE_MDNIE_SCR;
 
 	struct dsi_cmd_desc *DSI1_BYPASS_MDNIE;
 	struct dsi_cmd_desc *DSI1_NEGATIVE_MDNIE;
@@ -344,14 +382,19 @@ struct mdnie_lite_tune_data {
 	struct dsi_cmd_desc *DSI1_EBOOK_MOVIE_MDNIE;
 	struct dsi_cmd_desc *DSI1_EBOOK_AUTO_MDNIE;
 	struct dsi_cmd_desc *DSI1_EMAIL_AUTO_MDNIE;
+	struct dsi_cmd_desc *DSI1_GAME_LOW_MDNIE;
+	struct dsi_cmd_desc *DSI1_GAME_MID_MDNIE;
+	struct dsi_cmd_desc *DSI1_GAME_HIGH_MDNIE;
 	struct dsi_cmd_desc *DSI1_TDMB_DYNAMIC_MDNIE;
 	struct dsi_cmd_desc *DSI1_TDMB_STANDARD_MDNIE;
 	struct dsi_cmd_desc *DSI1_TDMB_NATURAL_MDNIE;
 	struct dsi_cmd_desc *DSI1_TDMB_MOVIE_MDNIE;
 	struct dsi_cmd_desc *DSI1_TDMB_AUTO_MDNIE;
+	struct dsi_cmd_desc *DSI1_NIGHT_MODE_MDNIE;
 
 	struct dsi_cmd_desc *(*mdnie_tune_value_dsi1)[MAX_MODE][MAX_OUTDOOR_MODE];
 	struct dsi_cmd_desc **hmt_color_temperature_tune_value_dsi1;
+	struct dsi_cmd_desc **hdr_tune_value_dsi1;
 
 	int dsi1_bypass_mdnie_size;
 	/* int mdnie_color_blinde_cmd_offset; */
@@ -363,6 +406,13 @@ struct mdnie_lite_tune_data {
 	int dsi1_trans_dimming_data_index;
 	char **dsi1_adjust_ldu_table;
 	int dsi1_max_adjust_ldu;
+	char *dsi1_night_mode_table;
+	int dsi1_max_night_mode_index;
+	int dsi1_scr_step_index;
+	char dsi1_white_default_r;
+	char dsi1_white_default_g;
+	char dsi1_white_default_b;
+	int dsi1_white_rgb_enabled;
 };
 
 /* COMMON FUNCTION*/

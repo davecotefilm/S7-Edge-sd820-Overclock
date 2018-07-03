@@ -29,41 +29,13 @@
 #include <linux/of.h>
 #include <trace/events/power.h>
 
+// AP: Default startup frequencies
+#define CONFIG_CPU_FREQ_MIN_CLUSTER1	307200
+#define CONFIG_CPU_FREQ_MAX_CLUSTER1	1728000
+#define CONFIG_CPU_FREQ_MIN_CLUSTER2	307200
+#define CONFIG_CPU_FREQ_MAX_CLUSTER2	2265000
+
 static DEFINE_MUTEX(l2bw_lock);
-
-static unsigned long arg_cpu_max_c1 = 1728000;
-
-static int __init cpufreq_read_cpu_max_c1(char *cpu_max_c1)
-{
-	unsigned long ui_khz;
-	int ret;
-
-	ret = kstrtoul(cpu_max_c1, 0, &ui_khz);
-	if (ret)
-		return -EINVAL;
-
-	arg_cpu_max_c1 = ui_khz;
-	printk("cpu_max_c1=%lu\n", arg_cpu_max_c1);
-	return ret;
-}
-__setup("cpu_max_c1=", cpufreq_read_cpu_max_c1);
-
-static unsigned long arg_cpu_max_c2 = 2265600;
-
-static int __init cpufreq_read_cpu_max_c2(char *cpu_max_c2)
-{
-	unsigned long ui_khz;
-	int ret;
-
-	ret = kstrtoul(cpu_max_c2, 0, &ui_khz);
-	if (ret)
-		return -EINVAL;
-
-	arg_cpu_max_c2 = ui_khz;
-	printk("cpu_max_c2=%lu\n", arg_cpu_max_c2);
-	return ret;
-}
-__setup("cpu_max_c2=", cpufreq_read_cpu_max_c2);
 
 static struct clk *cpu_clk[NR_CPUS];
 static struct clk *l2_clk;
@@ -146,10 +118,111 @@ done:
 	return ret;
 }
 
+#ifdef CONFIG_SEC_BSP
+cpufreq_boot_limit_t cpufreq_boot_limit = {.cur_period = -1,};
+
+static void cpufreq_verify_within_boot_limits(struct cpufreq_policy *policy)
+{
+	u32 silver_max;
+	u32 gold_max;
+	int cur_period;
+
+	if (unlikely(cpufreq_boot_limit.on)) {
+		cur_period = cpufreq_boot_limit.cur_period;
+		silver_max = cpufreq_boot_limit.freq[cur_period][0];
+		gold_max = cpufreq_boot_limit.freq[cur_period][1];
+		if (policy->cpu < 2) {
+			if (silver_max < policy->max) {
+				pr_debug("cpufreq : changing max freq (cpu%d: %u -> %u)\n",
+					policy->cpu, policy->max, silver_max);
+				cpufreq_boot_limit.stored_freq[0] = policy->max;
+				policy->max = silver_max;
+			}
+		} else {
+			if (gold_max < policy->max) {
+				pr_debug("cpufreq : changing max freq (cpu%d: %u -> %u)\n",
+					policy->cpu, policy->max, gold_max);
+				cpufreq_boot_limit.stored_freq[1] = policy->max;
+				policy->max = gold_max;
+			}
+		}
+	}
+}
+
+static int cpufreq_verify_within_freqtable(struct cpufreq_policy *policy)
+{
+	unsigned int min_idx = 0, max_idx = 0, min_bak, max_bak;
+	int ret_min, ret_max;
+	struct cpufreq_frequency_table *table =
+		cpufreq_frequency_get_table(policy->cpu);
+	if (!table)
+		return -ENODEV;
+
+	/***********************************************/
+	/* caution : this policy should be new_policy. */
+	min_bak = policy->min;
+	policy->min = policy->cpuinfo.min_freq;
+	max_bak = policy->max;
+	policy->max = policy->cpuinfo.max_freq;
+	/***********************************************/
+
+	ret_min = cpufreq_frequency_table_target(policy, table,
+				   min_bak,
+				   CPUFREQ_RELATION_L,
+				   &min_idx);
+
+	ret_max = cpufreq_frequency_table_target(policy, table,
+				   max_bak,
+				   CPUFREQ_RELATION_H,
+				   &max_idx);
+
+	if (unlikely(ret_min)) {
+		pr_err("%s: Unable to find matching min freq(cpu%u: %u)\n",
+			 __func__, policy->cpu, policy->min);
+	} else if (min_bak != table[min_idx].frequency) {
+		policy->min = table[min_idx].frequency;
+		ret_min = 1;
+	} else
+		policy->min = min_bak;
+
+	if (unlikely(ret_max)) {
+		pr_err("%s: Unable to find matching max freq(cpu%u: %u)\n",
+			 __func__, policy->cpu, policy->max);
+	} else if (max_bak != table[max_idx].frequency) {
+		policy->max = table[max_idx].frequency;
+		ret_max = 1;
+	} else
+		policy->max = max_bak;
+
+	if (policy->min > policy->max) {
+		policy->min = policy->max;
+		ret_min |= 2;
+	}
+
+	if (ret_min > 0)
+		pr_debug("%s: wrong freq. adjust(cpu%d min: %u -> %u)\n",
+			 __func__, policy->cpu, min_bak, policy->min);
+
+	if (ret_max > 0)
+		pr_debug("%s: wrong freq. adjust(cpu%d max: %u -> %u)\n",
+			 __func__, policy->cpu, max_bak, policy->max);
+
+	return ((ret_max << 16) | (ret_min));
+}
+#endif // CONFIG_SEC_BSP
+
 static int msm_cpufreq_verify(struct cpufreq_policy *policy)
 {
+#ifdef CONFIG_SEC_BSP
+	/* caution : this policy should be new_policy. */
+	cpufreq_verify_within_boot_limits(policy);
+#endif
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
 			policy->cpuinfo.max_freq);
+#ifdef CONFIG_SEC_BSP
+	/* caution : this policy should be new_policy. */
+	cpufreq_verify_within_freqtable(policy);
+#endif
 	return 0;
 }
 
@@ -177,25 +250,36 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 		if (cpu_clk[cpu] == cpu_clk[policy->cpu])
 			cpumask_set_cpu(cpu, policy->cpus);
 
-	if (cpufreq_frequency_table_cpuinfo(policy, table)){
-   		pr_err("cpufreq: failed to get policy min/max\n");
-  		
-  	/*
-  	 * Define default CPU frequency rules
-  	*/		
-  	//ARM LITTLE
-  	if (policy->cpu <= 1)
-  	{
-  		policy->cpuinfo.min_freq = 307200;
-  		policy->cpuinfo.max_freq = 1728000;
-  	}
-  	//ARM big
-  	else
-  	{
-  		policy->cpuinfo.min_freq = 307200;
-  		policy->cpuinfo.max_freq = 2265600;
-  	}
-         }
+	if (cpufreq_frequency_table_cpuinfo(policy, table))
+	{
+		// AP: set default frequencies to prevent overclocking or underclocking during start
+		if (policy->cpu <= 1)
+		{
+		   policy->cpuinfo.min_freq = CONFIG_CPU_FREQ_MIN_CLUSTER1;
+		   policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_MAX_CLUSTER1;
+		}
+
+		if (policy->cpu >= 2)
+		{
+		   policy->cpuinfo.min_freq = CONFIG_CPU_FREQ_MIN_CLUSTER2;
+		   policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_MAX_CLUSTER2;
+		}
+
+		pr_err("cpufreq: failed to get policy min/max\n");
+	}
+
+	// AP: set default frequencies to prevent overclocking or underclocking during start
+	if (policy->cpu <= 1)
+	{
+       policy->min = CONFIG_CPU_FREQ_MIN_CLUSTER1;
+       policy->max = CONFIG_CPU_FREQ_MAX_CLUSTER1;
+	}
+
+	if (policy->cpu >= 2)
+	{
+       policy->min = CONFIG_CPU_FREQ_MIN_CLUSTER2;
+       policy->max = CONFIG_CPU_FREQ_MAX_CLUSTER2;
+	}
 
 	cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
 
@@ -418,12 +502,6 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 		 */
 		if (i > 0 && f <= ftbl[i-1].frequency)
 			break;
-		//Custom max freq
-		if ((cpu < 2 && f > arg_cpu_max_c1) ||
-				(cpu >= 2 && f > arg_cpu_max_c2)) {
-			nf = i;
-			break;
-		}
 
 		ftbl[i].driver_data = i;
 		ftbl[i].frequency = f;
@@ -437,6 +515,77 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 	return ftbl;
 }
 
+#ifdef CONFIG_SEC_BSP
+static void cpufreq_boot_limit_expired_work(struct work_struct *work);
+static void cpufreq_boot_limit_expired(unsigned long data);
+static void cpufreq_boot_limit_start(int period);
+extern void cpufreq_boot_limit_update(int period);
+
+static void cpufreq_boot_limit_start(int period)
+{
+	if (period >= cpufreq_boot_limit.num_period)
+		goto limit_end;
+	if (period != (cpufreq_boot_limit.cur_period + 1))
+		goto period_err;
+		
+	cpufreq_boot_limit.cur_period = period;
+
+	if (period == 0) {
+		INIT_WORK(&cpufreq_boot_limit.time_out_work, cpufreq_boot_limit_expired_work);
+		init_timer(&cpufreq_boot_limit.timer);
+		cpufreq_boot_limit.timer.function = cpufreq_boot_limit_expired;
+		cpufreq_boot_limit.timer.expires = jiffies + cpufreq_boot_limit.timeout[period] * HZ;
+		add_timer(&cpufreq_boot_limit.timer);
+		cpufreq_boot_limit.on = 1;
+	} else {
+		mod_timer(&cpufreq_boot_limit.timer, jiffies + cpufreq_boot_limit.timeout[period] * HZ);
+	}
+
+	pr_info("%s(%d) : %d period started (%d, %d) for %d sec!!\n",
+		__func__, __LINE__, cpufreq_boot_limit.cur_period,
+		cpufreq_boot_limit.freq[period][0], cpufreq_boot_limit.freq[period][1],
+		cpufreq_boot_limit.timeout[period]);
+limit_end:			
+	/*cpufreq_boot_limit_update(period);*/
+
+	return;
+
+period_err:
+	pr_err("%s(%d) : input is not valid(%d, %d/%d)!!\n",
+		__func__, __LINE__, period, 
+		cpufreq_boot_limit.cur_period, cpufreq_boot_limit.num_period);
+}
+
+static void cpufreq_boot_limit_expired_work(struct work_struct *work)
+{
+	cpufreq_boot_limit_t *limit = container_of(work,
+					 cpufreq_boot_limit_t, time_out_work);
+	
+	cpufreq_boot_limit_start(limit->cur_period + 1);
+}
+
+static void cpufreq_boot_limit_expired(unsigned long data)
+{
+	schedule_work(&cpufreq_boot_limit.time_out_work);
+}
+
+static ssize_t store_cpufreq_boot_limit_period(struct kobject *kobj,
+			struct kobj_attribute *attr,
+			const char *buf, size_t count)
+{
+	int period;
+	if (kstrtoint(buf, 0, &period))
+		return -EINVAL;
+
+	cpufreq_boot_limit_start(period);
+	
+	return count;
+}
+
+static struct kobj_attribute attr_cpufreq_boot_limit_period = __ATTR(cpufreq_boot_limit_period,
+	0644, NULL, store_cpufreq_boot_limit_period);
+#endif
+
 static int __init msm_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -445,6 +594,13 @@ static int __init msm_cpufreq_probe(struct platform_device *pdev)
 	struct clk *c;
 	int cpu;
 	struct cpufreq_frequency_table *ftbl;
+#ifdef CONFIG_SEC_BSP
+	int ret, len, i, index;
+	struct device_node *cpufreq_limit_node;
+	const char *status;
+	const u32 *vec_arr = NULL;
+	u32 num_period;
+#endif
 
 	l2_clk = devm_clk_get(dev, "l2_clk");
 	if (IS_ERR(l2_clk))
@@ -508,6 +664,70 @@ static int __init msm_cpufreq_probe(struct platform_device *pdev)
 		per_cpu(freq_table, cpu) = ftbl;
 	}
 
+#ifdef CONFIG_SEC_BSP
+	cpufreq_limit_node = of_find_node_by_name(dev->of_node, "qcom,cpufreq-boot-limit");
+	if (!cpufreq_limit_node) {
+		dev_err(dev, "Fail to get cpufreq-boot-limit node\n");
+		goto skip_cpufreq_limit;
+	}
+
+	status = of_get_property(cpufreq_limit_node, "status", NULL);
+	if (status && (strcmp(status, "enabled") && strncmp(status, "ok", 2))) {
+		dev_err(dev, "cpufreq-boot-limit is not enabled.\n");
+		goto skip_cpufreq_limit;
+	}
+	dev_info(dev, "cpufreq-boot-limit is set.\n");
+
+	ret = cpufreq_get_global_kobject();
+	if (!ret) {
+		if (sysfs_create_file(cpufreq_global_kobject,
+			&attr_cpufreq_boot_limit_period.attr)) {
+			dev_err(dev, "Fail to make file(cpufreq_boot_limit_period)\n");
+		}
+	} else {
+		dev_err(dev, "Fail to get cpufreq_global_kobject\n");
+	}
+
+	ret = of_property_read_u32(cpufreq_limit_node,"qcom,cpufreq-boot-limit,num-period",
+		&num_period);
+	if (ret) {
+		dev_err(dev, "Fail to get num-period info\n");
+		goto skip_cpufreq_limit;
+	}
+
+	if (MAX_NUM_PERIOD < num_period) {
+		dev_err(dev, "num-period exceeded MAX_NUM_PERIOD\n");
+		goto skip_cpufreq_limit;
+	}
+
+	vec_arr = of_get_property(cpufreq_limit_node, "qcom,cpufreq-boot-limit,table", &len);
+	if (vec_arr == NULL) {
+		dev_err(dev, "Fail to get limit freq table\n");
+		goto skip_cpufreq_limit;
+	}
+
+	if (len != num_period * sizeof(u32) * 3) {
+		dev_err(dev, "length error - limit freq table\n");
+		goto skip_cpufreq_limit;
+	}
+
+	cpufreq_boot_limit.num_period = num_period;
+
+	for (i = 0; i < num_period; i++) {
+		index = i * 3;
+		cpufreq_boot_limit.freq[i][0] = be32_to_cpu(vec_arr[index]);
+		cpufreq_boot_limit.freq[i][1] = be32_to_cpu(vec_arr[index + 1]);
+		cpufreq_boot_limit.timeout[i] = be32_to_cpu(vec_arr[index + 2]);
+		pr_info("%s(%d): period(%d) - %d %d %d\n", __func__, __LINE__, i,
+			cpufreq_boot_limit.freq[i][0],cpufreq_boot_limit.freq[i][1],
+			cpufreq_boot_limit.timeout[i]);
+	}
+
+	cpufreq_boot_limit_start(0);
+
+skip_cpufreq_limit:
+#endif
+
 	return 0;
 }
 
@@ -547,25 +767,6 @@ static int __init msm_cpufreq_register(void)
 	register_pm_notifier(&msm_cpufreq_pm_notifier);
 	return cpufreq_register_driver(&msm_cpufreq_driver);
 }
-
-/* I'm adding this: */
-int is_sync_cpu(struct cpumask *mask, int first_cpu)
-{
-	int cpu;
-
-	for_each_cpu_and(cpu, mask, cpu_possible_mask) {
-		if (cpu == first_cpu)
-			continue;
-		if (cpu_clk[cpu] != cpu_clk[first_cpu])
-			return 0;
-	}
-
-	return 1;
-}
-
-EXPORT_SYMBOL(is_sync_cpu);
-
-/* end mine */
 
 subsys_initcall(msm_cpufreq_register);
 

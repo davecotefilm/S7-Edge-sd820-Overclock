@@ -60,10 +60,11 @@ KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 KBUILD_OPTIONS += $(WLAN_SELECT)
 KBUILD_OPTIONS += WLAN_OPEN_SOURCE=$(WLAN_OPEN_SOURCE)
 
+#module to be built for all user,userdebug and eng tags
 include $(CLEAR_VARS)
 LOCAL_MODULE              := $(WLAN_CHIPSET)_wlan.ko
 LOCAL_MODULE_KBUILD_NAME  := wlan.ko
-LOCAL_MODULE_TAGS         := debug
+LOCAL_MODULE_TAGS         := optional
 LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(TARGET_OUT)/lib/modules/$(WLAN_CHIPSET)
 include $(DLKM_DIR)/AndroidKernelModule.mk
@@ -73,9 +74,11 @@ include $(DLKM_DIR)/AndroidKernelModule.mk
 # standard module location.
 # TO-DO: This step needs to be moved to a post-build make target instead
 # TO-DO: as this may run multiple times
+ifneq ($(call is-board-platform-in-list, msm8952),true)
 $(shell mkdir -p $(TARGET_OUT)/lib/modules; \
     ln -sf /system/lib/modules/$(WLAN_CHIPSET)/$(WLAN_CHIPSET)_wlan.ko \
            $(TARGET_OUT)/lib/modules/wlan.ko)
+endif
 $(shell ln -sf /persist/wlan_mac.bin $(TARGET_OUT_ETC)/firmware/wlan/qca_cld/wlan_mac.bin)
 
 ifeq ($(call is-board-platform-in-list, msm8960),true)
@@ -108,6 +111,5 @@ endif
 endif
 
 endif # DLKM check
-
-endif # supported target check
+endif # Supported target check
 endif # WLAN enabled check

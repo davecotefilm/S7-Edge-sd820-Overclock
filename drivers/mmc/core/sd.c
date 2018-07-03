@@ -1133,6 +1133,31 @@ static void mmc_sd_remove(struct mmc_host *host)
  */
 static int mmc_sd_alive(struct mmc_host *host)
 {
+	int err = 0;
+
+	err = mmc_send_status(host->card, NULL);
+	/*
+	 * if mmc_send_status() returns error even card is presented 
+	 * It needs to re-initialize the card and send status CMD again.
+	 *   1. set the MMC_BUSRESUME_NEEDS_RESUME to run mmc_resume_bus
+	 *   2. set suspended status to re-init
+	 *   3. set to MMC_POWER_UP to set LEGACY
+	 *   4. set runtime pm to disable that is already enabled
+	 */
+	if (err && host->card && mmc_bus_manual_resume(host)) {
+		pr_err("%s: resume_bus: info(E:%d,F:%d,P:%d,S:%d,RD:%d)\n",
+				mmc_hostname(host), err, host->bus_resume_flags,
+				host->ios.power_mode,
+				(mmc_card_suspended(host->card) ? 1 : 0),
+				host->rescan_disable);
+		host->bus_resume_flags |= MMC_BUSRESUME_NEEDS_RESUME;
+		mmc_card_set_suspended(host->card);
+		host->ios.power_mode = MMC_POWER_UP;
+		pm_runtime_disable(&host->card->dev);
+		mmc_resume_bus(host);
+	} else
+		return err;
+
 	return mmc_send_status(host->card, NULL);
 }
 

@@ -25,7 +25,12 @@
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+
+#if defined(CONFIG_SEC_GRACEQLTE_PROJECT)
+#include <media/companion3_reg_map_grace.h>
+#else
 #include <media/companion3_reg_map.h>
+#endif
 
 #ifdef BYPASS_COMPANION
 #include "isp073Cfw_spi.h"
@@ -106,8 +111,13 @@ extern char fw_crc[10];
 
 struct msm_camera_i2c_client *g_i2c_client;
 
+int comp_fac_i2c_check = -1;
+uint16_t comp_fac_valid_check;
+
 static int msm_companion_get_crc(struct companion_device *companion_dev, struct companion_crc_check_param crc_param, int callByKernel);
 static int msm_companion_release(struct companion_device *companion_dev);
+static int msm_companion_fw_write(struct companion_device *companion_dev);
+
 
 static atomic_t comp_streamon_set;
 
@@ -309,6 +319,7 @@ static int msm_companion_fw_binary_set(struct companion_device *companion_dev, s
 static int msm_companion_set_cal_tbl(struct companion_device *companion_dev, struct msm_camera_i2c_reg_setting cal_tbl)
 {
 	CDBG("[syscamera][%s::%d][E]\n", __FUNCTION__, __LINE__);
+
 #if 0
 	if(companion_dev->companion_cal_tbl != NULL) {
 		kfree(companion_dev->companion_cal_tbl);
@@ -495,6 +506,8 @@ static int msm_companion_pll_init(struct companion_device *companion_dev)
 
 	// Read Device ID
 	ret = client->i2c_func_tbl->i2c_read(client, 0x0000, &read_value, MSM_CAMERA_I2C_WORD_DATA);
+        comp_fac_i2c_check = ret;
+        comp_fac_valid_check = read_value;
 	if (ret < 0) {
 		pr_err("[syscamera][%s::%d][PID::0x%4x][ret::%ld] I2C read fail \n", __FUNCTION__, __LINE__, read_value, ret);
 		return -EIO;
@@ -631,6 +644,7 @@ static int msm_companion_release_arm_reset(struct companion_device *companion_de
 	long ret = 0;
 	uint16_t read_value = 0xFFFF;
 	struct msm_camera_i2c_client *client = NULL;
+	uint16_t loop_cnt = 0;
 
 	CDBG("[syscamera][%s::%d][E]\n", __FUNCTION__, __LINE__);
 
@@ -640,6 +654,8 @@ static int msm_companion_release_arm_reset(struct companion_device *companion_de
 		pr_err("[syscamera][%s::%d][ERROR][companion_dev is NULL]\n", __FUNCTION__, __LINE__);
 		return -EIO;
 	}
+
+	usleep_range(1000, 2000);
 
 	//ARM Reset & Memory Remap
 	ret = client->i2c_func_tbl->i2c_write(
@@ -657,7 +673,7 @@ static int msm_companion_release_arm_reset(struct companion_device *companion_de
 		return -EIO;
 	}
 
-	usleep_range(1000, 2000);
+	usleep_range(2000, 4000);
 
 	//Check Rev Number
 	read_value = 0xFFFF;
@@ -672,7 +688,76 @@ static int msm_companion_release_arm_reset(struct companion_device *companion_de
 	} else if (read_value == 0x10A1) {
 		pr_err("[syscamera][%s::%d][PID::0x%4x][ret::%ld] Rev EVT 1\n", __FUNCTION__, __LINE__, read_value, ret);
 	} else {
-		pr_err("[syscamera][%s::%d][PID::0x%4x][ret::%ld] Rev Number fail\n", __FUNCTION__, __LINE__, read_value, ret);
+		pr_err("[syscamera::ERROR][%s::%d][PID::0x%4x][ret::%ld] Rev Number fail\n", __FUNCTION__, __LINE__, read_value, ret);
+	}
+
+	/* Recovery code for the ARM go fail */
+	while((read_value == 0xA0) && (loop_cnt < 2)) {
+		gpio_set_value_cansleep(GPIO_COMP_RSTN, GPIO_OUT_LOW); // COMP_RSTN_OFF
+		usleep_range(2000, 4000);
+		gpio_set_value_cansleep(GPIO_COMP_RSTN, GPIO_OUT_HIGH); // COMP_RSTN_ON
+		usleep_range(2000, 4000);
+
+		//write FW
+		pr_err("[syscamera::RECOVERY][%s::%d][Write FW]\n", __FUNCTION__, __LINE__);
+		ret = msm_companion_fw_write(companion_dev);
+		if(ret < 0) {
+			pr_err("[syscamera][%s::%d] error on loading firmware\n", __FUNCTION__, __LINE__);
+			return -EFAULT;
+		}
+		usleep_range(4000, 8000);
+
+		//ARM Reset & Memory Remap
+		pr_err("[syscamera::RECOVERY][%s::%d][ARM Reset & Memory Remap]\n", __FUNCTION__, __LINE__);
+		ret = client->i2c_func_tbl->i2c_write(
+			client, 0x6048, 0x0001, MSM_CAMERA_I2C_WORD_DATA);
+		if (ret < 0) {
+			pr_err("[syscamera::RECOVERY][%s::%d]ARM Reset & Memory Remap failed\n", __FUNCTION__, __LINE__);
+			return -EIO;
+		}
+
+		//ARM Go
+		pr_err("[syscamera::RECOVERY][%s::%d][ARM Go]\n", __FUNCTION__, __LINE__);
+		ret = client->i2c_func_tbl->i2c_write(
+			client, 0x6014, 0x0001, MSM_CAMERA_I2C_WORD_DATA);
+		if (ret < 0) {
+			pr_err("[syscamera::RECOVERY][%s::%d]Release ARM reset failed\n", __FUNCTION__, __LINE__);
+			return -EIO;
+		}
+
+		usleep_range(2000, 4000);
+
+		//Check Rev Number
+		pr_err("[syscamera::RECOVERY][%s::%d][Check Rev Number]\n", __FUNCTION__, __LINE__);
+		read_value = 0xFFFF;
+		ret = client->i2c_func_tbl->i2c_read(client, 0x0002, &read_value, MSM_CAMERA_I2C_WORD_DATA);
+		if (ret < 0) {
+			pr_err("[syscamera::RECOVERY][%s::%d][PID::0x%4x][ret::%ld] I2C read fail \n", __FUNCTION__, __LINE__, read_value, ret);
+			return -EIO;
+		}
+
+		if (read_value == 0x10A0) {
+			pr_err("[syscamera::RECOVERY][%s::%d][PID::0x%4x][ret::%ld] Rev EVT 0\n", __FUNCTION__, __LINE__, read_value, ret);
+		} else if (read_value == 0x10A1) {
+			pr_err("[syscamera::RECOVERY][%s::%d][PID::0x%4x][ret::%ld] Rev EVT 1\n", __FUNCTION__, __LINE__, read_value, ret);
+		} else {
+			pr_err("[syscamera::RECOVERY][%s::%d][PID::0x%4x][ret::%ld] Rev Number fail\n", __FUNCTION__, __LINE__, read_value, ret);
+		}
+		// Read Device ID
+		ret = client->i2c_func_tbl->i2c_read(client, 0x0000, &read_value, MSM_CAMERA_I2C_WORD_DATA);
+		if (ret < 0) {
+			pr_err("[syscamera::RECOVERY][%s::%d][PID::0x%4x][ret::%ld] I2C read fail \n", __FUNCTION__, __LINE__, read_value, ret);
+			return -EIO;
+		}
+
+		if (read_value != 0x73C3)
+			pr_err("[syscamera][%s::%d][PID::0x%4x] Device ID failed\n", __FUNCTION__, __LINE__, read_value);
+
+		loop_cnt++;
+	}
+	if (loop_cnt >= 2) {
+		pr_err("[syscamera::RECOVERY::ERROR][Arm go recovery fail]\n");
+		return -EIO;
 	}
 
 	//	Enable Using M2M Calibration data(Firmware User Guide 8p.)
@@ -728,6 +813,7 @@ static int msm_companion_fw_write(struct companion_device *companion_dev)
 	char *cc_fw_isp_path = NULL;
 	uint8_t iter = 0, crc_pass = 0;
 	uint32_t crc_cal = ~0;
+	uint16_t read_value = 0xFFFF;
 
 	if(companion_dev == NULL)
 	{
@@ -737,6 +823,9 @@ static int msm_companion_fw_write(struct companion_device *companion_dev)
 	client = &companion_dev->companion_i2c_client;
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
+
+	client->i2c_func_tbl->i2c_read(client, 0x0000, &read_value, MSM_CAMERA_I2C_WORD_DATA);
+	CDBG("[syscamera][%s::%d][PID::0x%4x] Device ID ok\n", __FUNCTION__, __LINE__, read_value);
 
 	//PLL Initialize
 	if (companion_version_info == COMP_EVT0) {
@@ -847,6 +936,7 @@ isp_filp_verr_iter:
 			}
 		} else {
 			crc_pass = 1;
+			msm_camera_fw_check('N', CHECK_COMPANION_FW);//N:Normal, F: Fail
 			CDBG("[syscamera][%s::%d][CRC32 is correct. iter = %d(max=3)]\n", __FUNCTION__, __LINE__, iter);
 			break;
 		}
@@ -904,6 +994,8 @@ isp_check_multimodule:
 			pr_err("[syscamera][%s::%d][Err::EEPROM Companion FW CRC32 is not correct. \n", __FUNCTION__, __LINE__);
 			msm_camera_fw_check('F', CHECK_COMPANION_FW);//F: Fail
 			goto isp_filp_ferr;
+		} else {
+			msm_camera_fw_check('N', CHECK_COMPANION_FW);//N:Normal, F: Fail
 		}
 
 		isp_fbuf = companion_dev->eeprom_fw_bin;
@@ -1814,8 +1906,8 @@ static int msm_companion_release(struct companion_device *companion_dev)
 		return -EINVAL;
 	}
 
-	tasklet_kill(&companion_dev->isr_resource.comp_tasklet);
 	disable_irq(companion_dev->isr_resource.comp_irq_num);
+	tasklet_kill(&companion_dev->isr_resource.comp_tasklet);
 
 	if (stats2) {
 		kfree(stats2);
@@ -2046,7 +2138,7 @@ static long msm_companion_cmd(struct companion_device *companion_dev, void *arg)
 	case COMPANION_CMD_DUMP_REGISTER:
 		rc = msm_companion_dump_register(companion_dev, dump_buf);
 		if (rc < 0) {
-			pr_err("[syscamera][%s::%d] msm_companion_stream_on failed\n", __FUNCTION__, __LINE__);
+			pr_err("[syscamera][%s::%d] msm_companion_dump_register failed\n", __FUNCTION__, __LINE__);
 			return -EFAULT;
 		}
 		if (copy_to_user(cdata->cfg.dump_buf, dump_buf, 0x8AFA)) {
@@ -2207,8 +2299,16 @@ static int32_t msm_companion_cmd32(struct companion_device *companion_dev, void 
 	CDBG("[syscamera][%s::%d]cfgtype = %d\n", __FUNCTION__, __LINE__, cdata.cfgtype);
 	switch (cdata.cfgtype) {
 	case COMPANION_CMD_INIT: {
-		uint32_t stats2_size = *(uint32_t *)compat_ptr(cdata32->cfg.setting); //1152
+		uint32_t stats2_size;
 		uint16_t companion_dump = cdata32->isDump;
+
+		if (copy_from_user(&stats2_size,
+				compat_ptr(cdata32->cfg.setting),
+				sizeof(uint32_t))) {
+			pr_err("[syscamera][%s::%d] Companion init, can't get stats2_size!!\n",
+				__FUNCTION__, __LINE__);
+			return -EFAULT;
+		}
 
 		CDBG("[syscamera][%s::%d] Companion init, stats2_size = %d\n", __FUNCTION__, __LINE__, stats2_size);
 		rc = msm_companion_init(companion_dev, stats2_size, companion_dump);
@@ -2450,7 +2550,7 @@ static int32_t msm_companion_cmd32(struct companion_device *companion_dev, void 
 		if (retention_mode == 0) {
 			pr_err("[syscamera][%s::%d] Entering retention mode\n", __FUNCTION__, __LINE__);
 			retention_mode = 1;
-			retention_mode_pwr = 1;// Do not turn off after entering retention mode 
+			retention_mode_pwr = 1;// Do not turn off after entering retention mode
 		}
 
 		CDBG("[syscamera][%s::%d] Loading master\n", __FUNCTION__, __LINE__);
@@ -2479,7 +2579,7 @@ static int32_t msm_companion_cmd32(struct companion_device *companion_dev, void 
 		cdata.cfg.dump_buf = compat_ptr(cdata32->cfg.dump_buf);
 		rc = msm_companion_dump_register(companion_dev, dump_buf);
 		if (rc < 0) {
-			pr_err("[syscamera][%s::%d] msm_companion_stream_on failed\n", __FUNCTION__, __LINE__);
+			pr_err("[syscamera][%s::%d] msm_companion_dump_register failed\n", __FUNCTION__, __LINE__);
 			return -EFAULT;
 		}
 		if (copy_to_user(cdata.cfg.dump_buf, dump_buf, 0x8AFA)) {
@@ -2569,7 +2669,7 @@ static long msm_companion_subdev_do_ioctl32(
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 
-	CDBG("[syscamera][%s::%d] Enter cmd(%d)\n", __FUNCTION__, __LINE__, cmd);
+	CDBG("[syscamera][%s::%d] Enter cmd(%d)\n", __FUNCTION__, __LINE__, _IOC_NR(cmd));
 	if (cmd == VIDIOC_MSM_COMPANION_IO_CFG32)
 		cmd = VIDIOC_MSM_COMPANION_IO_CFG;
 

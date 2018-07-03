@@ -31,3 +31,4 @@ obj-$(CONFIG_INPUT_KEYCOMBO)	+= keycombo.o
 obj-$(CONFIG_INPUT_TOUCHSCREEN)	+= sec_cmd.o
 
 obj-$(CONFIG_INPUT_WACOM)	+= wacom/
+obj-$(CONFIG_INPUT_WACOM_TAB)	+= wacom_tab/

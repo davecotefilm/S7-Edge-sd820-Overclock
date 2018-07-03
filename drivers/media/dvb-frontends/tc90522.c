@@ -722,7 +722,7 @@ static const struct dvb_frontend_ops tc90522_ops_sat = {
 	.info = {
 		.name = "Toshiba TC90522 ISDB-S module",
 		.frequency_min =  950000,
-		.frequency_max = 2342400,
+		.frequency_max = 2150000,
 		.caps = FE_CAN_INVERSION_AUTO | FE_CAN_FEC_AUTO |
 			FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO,

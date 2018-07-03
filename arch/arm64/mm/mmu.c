@@ -42,10 +42,6 @@
 
 #include "mm.h"
 
-#ifdef CONFIG_RKP_KDP
-__attribute__((section (".rkp.prot.page"))) int rkp_cred_enable = 0;
-EXPORT_SYMBOL(rkp_cred_enable);
-#endif /*CONFIG_RKP_KDP*/
 
 /*
  * Empty_zero_page is a special page that is used for zero-initialized data
@@ -256,12 +252,15 @@ spinlock_t ro_rkp_pages_lock = __SPIN_LOCK_UNLOCKED();
 char ro_pages_stat[RO_PAGES] = {0};
 unsigned ro_alloc_last = 0;
 int rkp_ro_mapped = 0;
-
+int ro_buf_done = 0;
 void* rkp_ro_alloc()
 {
 	unsigned long flags;
 	int i, j;
 	void * alloc_addr = NULL;
+	if (!ro_buf_done)
+		return alloc_addr;
+
 	spin_lock_irqsave(&ro_rkp_pages_lock,flags);
         for (i = 0, j = ro_alloc_last; i < (RO_PAGES) ; i++) {
 		j =  (j+i) %(RO_PAGES);
@@ -437,6 +436,9 @@ static inline bool use_1G_block(unsigned long addr, unsigned long next,
 	if (((addr | next | phys) & ~PUD_MASK) != 0)
 		return false;
 
+	if ((IS_ENABLED(CONFIG_TIMA_RKP)) && 
+		((addr <= (u64)_stext) && ((u64)_stext <= next)))
+			return false;
 	return true;
 }
 
@@ -681,9 +683,6 @@ static void __init map_mem(void)
 	struct memblock_region *reg;
 	phys_addr_t limit;
 
-#ifdef CONFIG_TIMA_RKP
-        phys_addr_t mid = 0xc0000000;
-#endif
 	/*
 	 * Temporarily limit the memblock range. We need to do this as
 	 * create_mapping requires puds, pmds and ptes to be allocated from
@@ -729,9 +728,9 @@ static void __init map_mem(void)
 		 * Memset should be done only once, obviously, hence the condition.
 		 */
 		if (((u64)start < TIMA_ROBUF_START) && ((u64)end > TIMA_ROBUF_START)) {
-			__map_memblock(start, mid);
+			__map_memblock(start, end);
 			memset(RKP_RBUF_VA, 0, TIMA_ROBUF_SIZE);
-			__map_memblock(mid, end);
+			ro_buf_done = 1;
 		} else {
 			__map_memblock(start, end);
 		}
@@ -739,7 +738,24 @@ static void __init map_mem(void)
 	__map_memblock(start, end);
 #endif
 	}
-
+#ifdef CONFIG_TIMA_RKP
+	if ((u64) _text & (~PMD_MASK)) {
+		phys_addr_t  start = (phys_addr_t) __pa(_text) & PMD_MASK;
+		phys_addr_t  end = (phys_addr_t) __pa(_text);
+		__map_memblock(start, end);
+		start = (phys_addr_t) __pa(_text);
+		end = (phys_addr_t) ALIGN(__pa(_text), PMD_SIZE);
+		__map_memblock(start, end);
+	}
+	if ((u64) _etext & (~PMD_MASK)) {
+		phys_addr_t  start = (phys_addr_t) __pa(_etext) & PMD_MASK;
+		phys_addr_t  end = (phys_addr_t) __pa(_etext);
+		__map_memblock(start, end);
+		start = (phys_addr_t) __pa(_etext);
+		end = (phys_addr_t) ALIGN(__pa(_etext), PMD_SIZE);
+		__map_memblock(start, end);
+	}
+#endif
 	/* Limit no longer required. */
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 }
@@ -996,10 +1012,10 @@ extern pte_t bm_pte[];
 extern pmd_t bm_pmd[];
 #else
 static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
+#if CONFIG_PGTABLE_LEVELS > 2
 static pmd_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss;
 #endif
-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
+#if CONFIG_PGTABLE_LEVELS > 3
 static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss;
 #endif
 #endif	/* CONFIG_TIMA_RKP */

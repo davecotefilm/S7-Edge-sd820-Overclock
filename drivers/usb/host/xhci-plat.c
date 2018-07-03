@@ -64,6 +64,60 @@ static int xhci_plat_start(struct usb_hcd *hcd)
 	return xhci_run(hcd);
 }
 
+static ssize_t config_imod_store(struct device *pdev,
+		struct device_attribute *attr, const char *buff, size_t size)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(pdev);
+	struct xhci_hcd *xhci;
+	u32 temp;
+	u32 imod;
+	unsigned long flags;
+
+	if (kstrtouint(buff, 10, &imod) != 1)
+		return 0;
+
+	imod &= ER_IRQ_INTERVAL_MASK;
+	xhci = hcd_to_xhci(hcd);
+
+	if (xhci->shared_hcd->state == HC_STATE_SUSPENDED
+		&& hcd->state == HC_STATE_SUSPENDED)
+		return -EACCES;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	temp = readl_relaxed(&xhci->ir_set->irq_control);
+	temp &= ~ER_IRQ_INTERVAL_MASK;
+	temp |= imod;
+	writel_relaxed(temp, &xhci->ir_set->irq_control);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	return size;
+}
+
+static ssize_t config_imod_show(struct device *pdev,
+		struct device_attribute *attr, char *buff)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(pdev);
+	struct xhci_hcd *xhci;
+	u32 temp;
+	unsigned long flags;
+
+	xhci = hcd_to_xhci(hcd);
+
+	if (xhci->shared_hcd->state == HC_STATE_SUSPENDED
+		&& hcd->state == HC_STATE_SUSPENDED)
+		return -EACCES;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	temp = readl_relaxed(&xhci->ir_set->irq_control) &
+			ER_IRQ_INTERVAL_MASK;
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	return snprintf(buff, PAGE_SIZE, "%08u\n", temp);
+}
+
+static DEVICE_ATTR(config_imod, S_IRUGO | S_IWUSR,
+		config_imod_show, config_imod_store);
+
 static int xhci_plat_probe(struct platform_device *pdev)
 {
 	struct device_node	*node = pdev->dev.of_node;
@@ -75,6 +129,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	struct clk              *clk;
 	int			ret;
 	int			irq;
+	u32			temp, imod;
+	unsigned long		flags;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -177,6 +233,24 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (ret)
 		goto put_usb3_hcd;
 
+	/* override imod interval if specified */
+	if (pdata && pdata->imod_interval) {
+		imod = pdata->imod_interval & ER_IRQ_INTERVAL_MASK;
+		spin_lock_irqsave(&xhci->lock, flags);
+		temp = readl_relaxed(&xhci->ir_set->irq_control);
+		temp &= ~ER_IRQ_INTERVAL_MASK;
+		temp |= imod;
+		writel_relaxed(temp, &xhci->ir_set->irq_control);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		dev_dbg(&pdev->dev, "%s: imod set to %u\n", __func__, imod);
+	}
+
+	ret = device_create_file(&pdev->dev, &dev_attr_config_imod);
+	if (ret)
+		dev_err(&pdev->dev, "%s: unable to create imod sysfs entry\n",
+					__func__);
+
+	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
@@ -205,6 +279,8 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	pm_runtime_disable(&dev->dev);
 
+	device_remove_file(&dev->dev, &dev_attr_config_imod);
+	xhci->xhc_state |= XHCI_STATE_REMOVING;
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_put_hcd(xhci->shared_hcd);
 
@@ -221,25 +297,37 @@ static int xhci_plat_remove(struct platform_device *dev)
 #ifdef CONFIG_PM_RUNTIME
 static int xhci_plat_runtime_idle(struct device *dev)
 {
-	if (pm_runtime_autosuspend_expiration(dev)) {
-		pm_runtime_autosuspend(dev);
-		return -EAGAIN;
-	}
-
-	return 0;
+	/*
+	 * When pm_runtime_put_autosuspend() is called on this device,
+	 * after this idle callback returns the PM core will schedule the
+	 * autosuspend if there is any remaining time until expiry. However,
+	 * when reaching this point because the child_count becomes 0, the
+	 * core does not honor autosuspend in that case and results in
+	 * idle/suspend happening immediately. In order to have a delay
+	 * before suspend we have to call pm_runtime_autosuspend() manually.
+	 */
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_autosuspend(dev);
+	return -EBUSY;
 }
 
 static int xhci_plat_runtime_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	int ret;
 
 	if (!xhci)
 		return 0;
 
 	dev_dbg(dev, "xhci-plat runtime suspend\n");
 
-	return xhci_suspend(xhci, true);
+	disable_irq(hcd->irq);
+	ret = xhci_suspend(xhci, true);
+	if (ret)
+		enable_irq(hcd->irq);
+
+	return ret;
 }
 
 static int xhci_plat_runtime_resume(struct device *dev)
@@ -254,6 +342,7 @@ static int xhci_plat_runtime_resume(struct device *dev)
 	dev_dbg(dev, "xhci-plat runtime resume\n");
 
 	ret = xhci_resume(xhci, false);
+	enable_irq(hcd->irq);
 	pm_runtime_mark_last_busy(dev);
 
 	return ret;

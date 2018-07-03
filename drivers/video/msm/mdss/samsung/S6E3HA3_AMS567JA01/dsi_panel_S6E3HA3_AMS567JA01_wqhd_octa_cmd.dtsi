@@ -14,53 +14,6 @@
 	ss_dsi_panel_S6E3HA3_AMS567JA01_WQHD: ss_dsi_panel_S6E3HA3_AMS567JA01_WQHD {
 		qcom,mdss-dsi-panel-name = "ss_dsi_panel_S6E3HA3_AMS567JA01_WQHD";
 		label = "ss_dsi_panel_S6E3HA3_AMS567JA01_WQHD";
-		qcom,mdss-dsi-panel-width = <720>;
-		qcom,mdss-dsi-panel-height = <2560>;
-		qcom,mdss-dsi-bpp = <24>;
-		qcom,mdss-dsi-panel-timings = [FE 56 3C 00 74 88 3C 56 4A 03 04 A0];
-
-		qcom,mdss-dsi-on-command= [
-			29 00 00 00 05 00 03 F0 5A 5A 		/* TEST KEY1 Enable */
-
-			05 01 00 00 05 00 01 11 			/* Sleep out */
-
-			29 00 00 00 00 00 02 C4 03			/* Dual DSI */
-			29 01 00 00 00 00 02 F9 03			/* MIC disable */
-			29 01 00 00 78 00 03 B5 BC 4A		/* defualt ELVSS is 0x0A(-4.5V),
-												* but set 0x4A(-2.9V) to avoid glitter issue (2V more diff between ELVSS and VINT)
-												*/
-
-			29 00 00 00 00 00 02 35 00			/* TE Vsync ON */
-
-			29 00 00 00 00 00 02 ED 44			/* ERR_FG */
-
-			29 00 00 00 00 00 14 C2				/* pentime control setting */
-				00 00 D8 D8 00 80 2B 05
-				08 0E 07 0B 05 0D 0A 15
-				13 20 1E
-
-			29 00 00 00 00 00 24				/* Brightness condition set */
-				CA
-				01 00 01 00 01 00
-				80 80 80
-				80 80 80
-				80 80 80
-				80 80 80
-				80 80 80
-				80 80 80
-				80 80 80
-				80 80 80
-				00 00 00
-				00 00
-			29 00 00 00 00 00 0B B1 54 20 1A 33 5E 8C B3 D9	00 0A	/* AID 0% */
-			29 00 00 00 00 00 03 F4 AB 1E		/* VINT set */
-			29 00 00 00 00 00 02 55 00			/* acl off */
-
-			29 01 00 00 01 00 02 F7 03			/* Gamma, LTPS(AID) update wait more 100ns */
-			29 00 00 00 00 00 02 F7 00
-
-			29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY key Disable  */
-		];
 
 		qcom,mdss-dsi-off-command=[
 			05 01 00 00 00 00 02 28 00
@@ -87,14 +40,7 @@
 		/*qcom,mdss-dsi-fbc-rgb-threshold=*/
 		/*qcom,mdss-dsi-fbc-lossy-mode-idx=*/
 
-		qcom,mdss-dsi-h-pulse-width = <124>;
-		qcom,mdss-dsi-h-back-porch = <106>;
-		qcom,mdss-dsi-h-front-porch = <16>;
-		qcom,mdss-dsi-h-sync-skew = <0>;
-		qcom,mdss-dsi-v-pulse-width = <2>;
-		qcom,mdss-dsi-v-back-porch = <14>;
-		qcom,mdss-dsi-v-front-porch = <6>;
-
+		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-h-left-border = <0>;
 		qcom,mdss-dsi-h-right-border = <0>;
 		qcom,mdss-dsi-v-top-border = <0>;
@@ -112,8 +58,8 @@
 		/*qcom,mdss-dsi-pwm-gpio=*/
 
 		qcom,mdss-dsi-bl-min-level = <1>;
-		qcom,mdss-dsi-bl-max-level = <255>;
-		qcom,mdss-brightness-max-level = <255>;
+		qcom,mdss-dsi-bl-max-level = <365>;
+		qcom,mdss-brightness-max-level = <365>;
 		qcom,mdss-dsi-interleave-mode = <0>;
 		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
 
@@ -153,7 +99,7 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-panel-framerate = <60>;
 /*		qcom,mdss-dsi-panel-clockrate = <980500000>;*/
-		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+
 		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
 
 		qcom,mdss-pan-physical-width-dimension = <63>; /* 63.36*/
@@ -173,7 +119,7 @@
 		qcom,mdss-dsi-reset-sequence = <1 5>, <0 5>, <1 5>;
 		qcom,partial-update-enabled;
 		qcom,partial-update-roi-merge;
-		qcom,panel-roi-alignment=<8 1 8 1 8 1>;
+
 		/*qcom,mdss-dsi-horizontal-line-idle*/
 
 		qcom,mdss-dsi-lp11-init;
@@ -190,7 +136,7 @@
 		qcom,mdss-dsi-panel-status-irq-trigger1 = "rising";
 		qcom,mdss-dsi-panel-status-irq-trigger2 = "falling";
 
-		samsung,esd_2c_short1_tx_cmds_revA = [
+		samsung,esd_recovery_1_tx_cmds_revA = [
 			07 00 00 00 00 00 01 00
 			05 00 00 00 00 00 01 38
 			05 00 00 00 00 00 01 2c
@@ -199,7 +145,7 @@
 			29 01 00 00 00 00 03 F0 A5 A5
 		];
 
-		samsung,esd_2c_short2_tx_cmds_revA = [
+		samsung,esd_recovery_2_tx_cmds_revA = [
 			07 00 00 00 00 00 01 00
 			05 00 00 00 00 00 01 38
 			05 00 00 00 00 00 01 2c
@@ -223,6 +169,7 @@
 		samsung,support_irc;
 		samsung,elvss_interpolation_temperature = <(-15)>;
 		samsung,support_factory_panel_swap;
+		samsung,support_multires;
 
 		/*
 		* ************************************************************************************************************************
@@ -337,6 +284,34 @@
 		 */
 		samsung,alpm_on_tx_cmds_revA = [
 			29 01 00 00 00 00 03 F0 5A 5A		/* TEST KEY Enable */
+
+			/* mDNIe BYPASS */
+			39 01 00 00 00 00 3A
+				DF 00 00 00 67 a9 0c 0c 0c 0c
+				00 aa ab 00 aa ab 00 aa ab 00
+				aa ab ff 00 00 ff ff 00 ff 00
+				ff ff ff ff 00 ff ff 00 ff 00
+				ff 00 00 ff ff 00 ff 00 ff 00
+				00 ff ff 00 ff 00 ff 00
+			39 01 00 00 00 00 87
+				DE 00 24 96 b3 01 0e 01 00 77
+				03 07 40 00 08 04 04 01 80 28
+				3e 7e a0 28 18 a0 07 65 06 03
+				00 40 00 00 10 00 00 30 00 00
+				00 30 00 00 30 00 00 00 ff 01
+				00 00 07 ff 07 ff 14 00 0a 00
+				32 01 f4 0b 8a 6e 99 1b 17 1e
+				1b 02 5f 03 33 02 c8 02 22 10
+				10 07 07 20 2d 01 00 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 ff
+			39 01 00 00 00 00 10
+				DD 01 00 00 00 00 00 00 00 00
+				00 00 00 00 00 00
+
 			29 01 00 00 00 00 02 BB C4			/* HLPM(0x54)/ALPM(0xC4) Mode On */
 			29 01 00 00 00 00 02 53 03			/* ALPM/HLPM 2nit On */
 			29 01 00 00 01 00 02 F7 03			/* Gamma, LTPS(AID) update */
@@ -346,6 +321,34 @@
 
 		samsung,alpm_on_tx_cmds_revD = [
 			29 01 00 00 00 00 03 F0 5A 5A		/* TEST KEY Enable */
+
+			/* mDNIe BYPASS */
+			39 01 00 00 00 00 3A
+				DF 00 00 00 67 a9 0c 0c 0c 0c
+				00 aa ab 00 aa ab 00 aa ab 00
+				aa ab ff 00 00 ff ff 00 ff 00
+				ff ff ff ff 00 ff ff 00 ff 00
+				ff 00 00 ff ff 00 ff 00 ff 00
+				00 ff ff 00 ff 00 ff 00
+			39 01 00 00 00 00 87
+				DE 00 24 96 b3 01 0e 01 00 77
+				03 07 40 00 08 04 04 01 80 28
+				3e 7e a0 28 18 a0 07 65 06 03
+				00 40 00 00 10 00 00 30 00 00
+				00 30 00 00 30 00 00 00 ff 01
+				00 00 07 ff 07 ff 14 00 0a 00
+				32 01 f4 0b 8a 6e 99 1b 17 1e
+				1b 02 5f 03 33 02 c8 02 22 10
+				10 07 07 20 2d 01 00 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 20 00 20 00 20 00
+				20 00 20 00 ff
+			39 01 00 00 00 00 10
+				DD 01 00 00 00 00 00 00 00 00
+				00 00 00 00 00 00
+
 			29 01 00 00 00 00 02 BB C4			/* HLPM(0x54)/ALPM(0xC4) Mode On */
 			29 01 00 00 00 00 02 53 03			/* ALPM/HLPM 2nit On */
 			29 01 00 00 00 00 02 B8 00			/* IRC Setting(IRC OFF) */
@@ -466,6 +469,7 @@
 		* ************************************************************************************************************************
 		*/
 
+		samsung,enter_hbm_lux = <10000>;
 		samsung,hbm_rx_cmds_revA = [ 06 01 00 00 00 00 01 B3 21 00];	/* read C8 51~65th , 50=0x32 */
 		samsung,hbm2_rx_cmds_revA = [ 06 01 00 00 00 00 01 c8 14 44];	/* read C8 69~88th , 68=0x44 */
 
@@ -1154,7 +1158,50 @@
 			29 01 00 00 00 00 0B B1 54 20 1A 33 5E 8C B3 D9 00 0A /* 254 */
 			29 01 00 00 00 00 0B B1 54 20 1A 33 5E 8C B3 D9 00 0A /* 255 */
 		];
+		samsung,panel_multires_fhd_to_wqhd_revA = [
+			29 01 00 00 20 00 03 F0 5A 5A		/* TEST KEY1 Enable */
 
+			29 00 00 00 00 00 02 BA 01			/* scaler setup */
+
+			29 00 00 00 00 00 05 2A 00 00 05 9F	/* CASET PASET */
+			29 00 00 00 00 00 05 2B 00 00 09 FF
+
+			29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY Disable */
+		];
+
+		samsung,panel_multires_hd_to_wqhd_revA = [
+			29 01 00 00 20 00 03 F0 5A 5A		/* TEST KEY1 Enable */
+
+			29 00 00 00 00 00 02 BA 01			/* scaler setup */
+
+			29 00 00 00 00 00 05 2A 00 00 05 9F	/* CASET PASET */
+			29 00 00 00 00 00 05 2B 00 00 09 FF
+
+			29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY Disable */
+		];
+
+		samsung,panel_multires_fhd_revA = [
+			29 01 00 00 20 00 03 F0 5A 5A		/* TEST KEY1 Enable */
+
+
+			29 00 00 00 00 00 02 BA 02			/* scaler setup */
+
+			29 00 00 00 00 00 05 2A 00 00 04 37	/* CASET PASET */
+			29 00 00 00 00 00 05 2B 00 00 07 7F
+
+			29 01 00 00 00 00 03 F0 A5 A5	/* TEST KEY Disable */
+		];
+
+		samsung,panel_multires_hd_revA = [
+			29 01 00 00 20 00 03 F0 5A 5A		/* TEST KEY1 Enable */
+
+			29 00 00 00 00 00 02 BA 00			/* scaler setup */
+
+			29 00 00 00 00 00 05 2A 00 00 02 CF	/* CASET PASET */
+			29 00 00 00 00 00 05 2B 00 00 04 FF
+
+			29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY Disable */
+		];
 		/*
 		* ************************************************************************************************************************
 		* ACL command list and mappings
@@ -1406,6 +1453,16 @@
 			73	251	255	420
 		>;
 
+		samsung,hbm_candela_map_table_revA = <
+			0	282	295	465	6
+			1	296	309	488	7
+			2	310	323	510	8
+			3	324	336	533	9
+			4	337	350	555	10
+			5	351	364	578	11
+			6	365	365	600	12
+		>;
+
 		/*
 		* ************************************************************************************************************************
 		*  HMT
@@ -1618,5 +1675,233 @@
 				29 01 00 00 00 00 02 F7 00
 				29 01 00 00 00 00 03 F0 A5 A5
 			];
+		/*
+		* ************************************************************************************************************************
+		*  MULTI_RESOLUTION (DSC configs were moved all to below timing set)
+		* ************************************************************************************************************************
+		*/
+
+		qcom,mdss-dsi-display-timings {
+			wqhd {
+				qcom,mdss-dsi-timing-default;
+				qcom,mdss-dsi-panel-width = <720>;
+				qcom,mdss-dsi-panel-height = <2560>;
+				qcom,mdss-dsi-h-pulse-width = <124>;
+				qcom,mdss-dsi-h-back-porch = <106>;
+				qcom,mdss-dsi-h-front-porch = <16>;
+				qcom,mdss-dsi-h-sync-skew = <0>;
+				qcom,mdss-dsi-v-pulse-width = <2>;
+				qcom,mdss-dsi-v-back-porch = <14>;
+				qcom,mdss-dsi-v-front-porch = <6>;
+
+				qcom,mdss-dsi-panel-framerate = <60>;
+				qcom,mdss-dsi-panel-timings = [FE 56 3C 00 74 88 3C 56 4A 03 04 A0];
+				qcom,mdss-dsi-t-clk-pre = <0x33>;
+				qcom,mdss-dsi-t-clk-post = <0x0D>;
+				qcom,mdss-dsi-panel-timings-phy-v2 = [
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1E 08 09 05 03 04 a0
+				];
+				qcom,mdss-dsi-on-command = [
+					29 00 00 00 05 00 03 F0 5A 5A 		/* TEST KEY1 Enable */
+
+					05 01 00 00 05 00 01 11 			/* Sleep out */
+
+					29 00 00 00 00 00 02 C4 03			/* Dual DSI */
+					29 01 00 00 00 00 02 F9 03			/* MIC disable */
+
+					29 00 00 00 00 00 02 35 00			/* TE Vsync ON */
+
+					29 00 00 00 00 00 02 ED 44			/* ERR_FG */
+
+					29 00 00 00 00 00 14 C2				/* pentime control setting */
+					00 00 D8 D8 00 80 2B 05
+					08 0E 07 0B 05 0D 0A 15
+					13 20 1E
+
+					29 00 00 00 00 00 02 BA 01			/* scaler setup */
+
+					29 00 00 00 00 00 05 2A 00 00 05 9F	/* CASET PASET */
+					29 00 00 00 00 00 05 2B 00 00 09 FF
+
+					29 00 00 00 00 00 24				/* Brightness condition set */
+					CA
+					01 00 01 00 01 00
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					00 00 00
+					00 00
+					29 00 00 00 00 00 0B B1 54 20 1A 33 5E 8C B3 D9	00 0A	/* AID 0% */
+					29 00 00 00 00 00 03 B5 BC 4A		/* ELVSS Setting:CAPS ON : acl off */
+										/* defualt ELVSS is 0x0A(-4.5V),
+										 * but set 0x4A(-2.9V) to avoid glitter issue (2V more diff between ELVSS and VINT)
+										 */
+					29 00 00 00 00 00 03 F4 AB 1E		/* VINT set */
+					29 00 00 00 00 00 02 55 00			/* acl off */
+
+					29 01 00 00 78 00 02 F7 03			/* Gamma, LTPS(AID) update wait more 100ns */
+					29 00 00 00 00 00 02 F7 00
+
+					29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY key Disable  */
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+				qcom,panel-roi-alignment=<8 1 8 1 8 1>;
+			};
+			fhd {
+				qcom,mdss-dsi-panel-width = <540>;
+				qcom,mdss-dsi-panel-height = <1920>;
+				qcom,mdss-dsi-h-pulse-width = <304>;
+				qcom,mdss-dsi-h-back-porch = <106>;
+				qcom,mdss-dsi-h-front-porch = <16>;
+				qcom,mdss-dsi-h-sync-skew = <0>;
+				qcom,mdss-dsi-v-pulse-width = <642>;//+640
+				qcom,mdss-dsi-v-back-porch = <14>;
+				qcom,mdss-dsi-v-front-porch = <6>;
+
+				qcom,mdss-dsi-panel-framerate = <60>;
+				qcom,mdss-dsi-panel-timings = [FE 56 3C 00 74 88 3C 56 4A 03 04 A0];
+				qcom,mdss-dsi-t-clk-pre = <0x33>;
+				qcom,mdss-dsi-t-clk-post = <0x0D>;
+				qcom,mdss-dsi-panel-timings-phy-v2 = [
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1E 08 09 05 03 04 a0
+				];
+				qcom,mdss-dsi-on-command = [
+					29 00 00 00 05 00 03 F0 5A 5A 		/* TEST KEY1 Enable */
+
+					05 01 00 00 05 00 01 11 			/* Sleep out */
+
+					29 00 00 00 00 00 02 C4 03			/* Dual DSI */
+					29 01 00 00 00 00 02 F9 03			/* MIC disable */
+
+					29 00 00 00 00 00 02 35 00			/* TE Vsync ON */
+
+					29 00 00 00 00 00 02 ED 44			/* ERR_FG */
+
+					29 00 00 00 00 00 14 C2				/* pentime control setting */
+					00 00 D8 D8 00 80 2B 05
+					08 0E 07 0B 05 0D 0A 15
+					13 20 1E
+
+					29 00 00 00 00 00 02 BA 02			/* scaler setup */
+
+					29 00 00 00 00 00 05 2A 00 00 04 37	/* CASET PASET */
+					29 00 00 00 00 00 05 2B 00 00 07 7F
+
+					29 00 00 00 00 00 24				/* Brightness condition set */
+					CA
+					01 00 01 00 01 00
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					00 00 00
+					00 00
+					29 00 00 00 00 00 0B B1 54 20 1A 33 5E 8C B3 D9	00 0A	/* AID 0% */
+					29 00 00 00 00 00 03 B5 BC 4A		/* ELVSS Setting:CAPS ON : acl off */
+												/* defualt ELVSS is 0x0A(-4.5V),
+												 * but set 0x4A(-2.9V) to avoid glitter issue (2V more diff between ELVSS and VINT)
+												 */
+					29 00 00 00 00 00 03 F4 AB 1E		/* VINT set */
+					29 00 00 00 00 00 02 55 00			/* acl off */
+
+					29 01 00 00 78 00 02 F7 03			/* Gamma, LTPS(AID) update wait more 100ns */
+					29 00 00 00 00 00 02 F7 00
+
+					29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY key Disable  */
+					];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+				qcom,panel-roi-alignment=<8 1 8 1 8 1>;
+			};
+			hd {
+				qcom,mdss-dsi-panel-width = <360>;
+				qcom,mdss-dsi-panel-height = <1280>;
+				qcom,mdss-dsi-h-pulse-width = <484>;
+				qcom,mdss-dsi-h-back-porch = <106>;
+				qcom,mdss-dsi-h-front-porch = <16>;
+				qcom,mdss-dsi-h-sync-skew = <0>;
+				qcom,mdss-dsi-v-pulse-width = <1282>;
+				qcom,mdss-dsi-v-back-porch = <14>;
+				qcom,mdss-dsi-v-front-porch = <6>;
+
+				qcom,mdss-dsi-panel-framerate = <60>;
+				qcom,mdss-dsi-panel-timings = [FE 56 3C 00 74 88 3C 56 4A 03 04 A0];
+				qcom,mdss-dsi-t-clk-pre = <0x33>;
+				qcom,mdss-dsi-t-clk-post = <0x0D>;
+				qcom,mdss-dsi-panel-timings-phy-v2 = [
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1F 08 09 05 03 04 a0
+					24 1E 08 09 05 03 04 a0
+				];
+				qcom,mdss-dsi-on-command = [
+					29 00 00 00 05 00 03 F0 5A 5A 		/* TEST KEY1 Enable */
+
+					05 01 00 00 05 00 01 11 			/* Sleep out */
+
+					29 00 00 00 00 00 02 C4 03			/* Dual DSI */
+					29 01 00 00 00 00 02 F9 03			/* MIC disable */
+
+					29 00 00 00 00 00 02 35 00			/* TE Vsync ON */
+
+					29 00 00 00 00 00 02 ED 44			/* ERR_FG */
+
+					29 00 00 00 00 00 14 C2				/* pentime control setting */
+					00 00 D8 D8 00 80 2B 05
+					08 0E 07 0B 05 0D 0A 15
+					13 20 1E
+
+					29 00 00 00 00 00 02 BA 00			/* scaler setup */
+
+					29 00 00 00 00 00 05 2A 00 00 02 CF	/* CASET PASET */
+					29 00 00 00 00 00 05 2B 00 00 04 FF
+
+					29 00 00 00 00 00 24				/* Brightness condition set */
+					CA
+					01 00 01 00 01 00
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					80 80 80
+					00 00 00
+					00 00
+					29 00 00 00 00 00 0B B1 54 20 1A 33 5E 8C B3 D9	00 0A	/* AID 0% */
+					29 00 00 00 00 00 03 B5 BC 4A		/* ELVSS Setting:CAPS ON : acl off */
+												/* defualt ELVSS is 0x0A(-4.5V),
+												 * but set 0x4A(-2.9V) to avoid glitter issue (2V more diff between ELVSS and VINT)
+												 */
+					29 00 00 00 00 00 03 F4 AB 1E		/* VINT set */
+					29 00 00 00 00 00 02 55 00			/* acl off */
+
+					29 01 00 00 78 00 02 F7 03			/* Gamma, LTPS(AID) update wait more 100ns */
+					29 00 00 00 00 00 02 F7 00
+
+					29 01 00 00 00 00 03 F0 A5 A5		/* TEST KEY key Disable  */
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+				qcom,panel-roi-alignment=<8 1 8 1 8 1>;
+			};
+		};
 	};
 };

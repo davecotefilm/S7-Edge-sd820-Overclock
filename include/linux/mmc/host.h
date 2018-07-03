@@ -95,8 +95,7 @@ struct mmc_cmdq_host_ops {
 	int (*enable)(struct mmc_host *host);
 	void (*disable)(struct mmc_host *host, bool soft);
 	int (*request)(struct mmc_host *host, struct mmc_request *mrq);
-	void (*post_req)(struct mmc_host *host, struct mmc_request *mrq,
-			 int err);
+	void (*post_req)(struct mmc_host *host, int tag, int err);
 	int (*halt)(struct mmc_host *host, bool halt);
 	void (*reset)(struct mmc_host *host, bool soft);
 	void (*dumpstate)(struct mmc_host *host);
@@ -178,7 +177,6 @@ struct mmc_host_ops {
 	unsigned long (*get_min_frequency)(struct mmc_host *host);
 	int	(*notify_load)(struct mmc_host *, enum mmc_load);
 	void	(*notify_halt)(struct mmc_host *mmc, bool halt);
-	void	(*detect)(struct mmc_host *host, bool detected);
 	void	(*force_err_irq)(struct mmc_host *host, u64 errmask);
 };
 
@@ -257,6 +255,8 @@ struct mmc_cmdq_context_info {
 #define	CMDQ_STATE_ERR 0
 #define	CMDQ_STATE_DCMD_ACTIVE 1
 #define	CMDQ_STATE_HALT 2
+#define	CMDQ_STATE_CQ_DISABLE 3
+#define	CMDQ_STATE_REQ_TIMED_OUT 4
 	wait_queue_head_t	queue_empty_wq;
 	wait_queue_head_t	wait;
 	int active_small_sector_read_reqs;
@@ -289,7 +289,6 @@ enum dev_state {
 	DEV_SUSPENDING = 1,
 	DEV_SUSPENDED,
 	DEV_RESUMED,
-	DEV_UNKNOWN,	/* Device is in an unknown state */
 };
 
 /**
@@ -333,6 +332,8 @@ struct mmc_devfeq_clk_scaling {
 	unsigned long	polling_delay_ms;
 	unsigned int	upthreshold;
 	unsigned int	downthreshold;
+	unsigned int	lower_bus_speed_mode;
+#define MMC_SCALING_LOWER_DDR52_MODE	1
 	bool		need_freq_change;
 	bool		clk_scaling_in_progress;
 	bool		is_busy_started;
@@ -415,6 +416,7 @@ struct mmc_host {
 #define MMC_CAP2_HS200_1_2V_SDR	(1 << 6)        /* can support */
 #define MMC_CAP2_HS200		(MMC_CAP2_HS200_1_8V_SDR | \
 				 MMC_CAP2_HS200_1_2V_SDR)
+#define MMC_CAP2_DETECT_ON_ERR  (1 << 8)        /* On I/O err check card removal */
 #define MMC_CAP2_HC_ERASE_SZ	(1 << 9)	/* High-capacity erase size */
 #define MMC_CAP2_CD_ACTIVE_HIGH	(1 << 10)	/* Card-detect signal active high */
 #define MMC_CAP2_RO_ACTIVE_HIGH	(1 << 11)	/* Write-protect signal active high */
@@ -440,6 +442,7 @@ struct mmc_host {
 #define MMC_CAP2_SLEEP_AWAKE	(1 << 28)	/* Use Sleep/Awake (CMD5) */
 /* use max discard ignoring max_busy_timeout parameter */
 #define MMC_CAP2_MAX_DISCARD_SIZE	(1 << 29)
+#define MMC_CAP2_BKOPS_EN	(1 << 30)
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -564,6 +567,9 @@ struct mmc_host {
 	enum dev_state dev_status;
 	bool			wakeup_on_idle;
 	struct mmc_cmdq_context_info	cmdq_ctx;
+	int num_cq_slots;
+	int dcmd_cq_slot;
+	u32			cmdq_thist_enabled;
 	/*
 	 * several cmdq supporting host controllers are extensions
 	 * of legacy controllers. This variable can be used to store
@@ -572,6 +578,7 @@ struct mmc_host {
 	 */
 	void *cmdq_private;
 	struct mmc_request	*err_mrq;
+	unsigned int		card_detect_cnt;
 	unsigned long		private[0] ____cacheline_aligned;
 };
 
@@ -684,6 +691,12 @@ static inline int mmc_boot_partition_access(struct mmc_host *host)
 	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
 }
 
+static inline bool mmc_card_and_host_support_async_int(struct mmc_host *host)
+{
+	return ((host->caps2 & MMC_CAP2_ASYNC_SDIO_IRQ_4BIT_MODE) &&
+			(host->card->cccr.async_intr_sup));
+}
+
 static inline int mmc_host_uhs(struct mmc_host *host)
 {
 	return host->caps &
@@ -710,6 +723,21 @@ static inline void mmc_host_clr_halt(struct mmc_host *host)
 static inline int mmc_host_halt(struct mmc_host *host)
 {
 	return test_bit(CMDQ_STATE_HALT, &host->cmdq_ctx.curr_state);
+}
+
+static inline void mmc_host_set_cq_disable(struct mmc_host *host)
+{
+	set_bit(CMDQ_STATE_CQ_DISABLE, &host->cmdq_ctx.curr_state);
+}
+
+static inline void mmc_host_clr_cq_disable(struct mmc_host *host)
+{
+	clear_bit(CMDQ_STATE_CQ_DISABLE, &host->cmdq_ctx.curr_state);
+}
+
+static inline int mmc_host_cq_disable(struct mmc_host *host)
+{
+	return test_bit(CMDQ_STATE_CQ_DISABLE, &host->cmdq_ctx.curr_state);
 }
 
 #ifdef CONFIG_MMC_CLKGATE

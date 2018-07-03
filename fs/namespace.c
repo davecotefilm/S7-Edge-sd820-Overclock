@@ -70,6 +70,8 @@ static struct hlist_head *mountpoint_hashtable __read_mostly;
 static struct kmem_cache *mnt_cache __read_mostly;
 #ifdef CONFIG_RKP_NS_PROT
 static struct kmem_cache *vfsmnt_cache __read_mostly;
+RKP_RO_AREA struct super_block *sys_sb;
+RKP_RO_AREA struct super_block *rootfs_sb;
 #endif
 
 static DECLARE_RWSEM(namespace_sem);
@@ -1168,7 +1170,7 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
 	unlock_mount_hash();
 
-	if (((flag & CL_SLAVE) && !IS_MNT_SLAVE(old)) ||
+	if ((flag & CL_SLAVE) ||
 	    ((flag & CL_SHARED_TO_SLAVE) && IS_MNT_SHARED(old))) {
 		list_add(&mnt->mnt_slave, &old->mnt_slave_list);
 		mnt->mnt_master = old;
@@ -1720,6 +1722,8 @@ static int do_umount(struct mount *mnt, int flags)
 	}
 	unlock_mount_hash();
 	namespace_unlock();
+	if (retval == -EBUSY)
+		global_filetable_delayed_print(mnt);
 	return retval;
 }
 
@@ -2642,8 +2646,13 @@ static bool fs_fully_visible(struct file_system_type *fs_type, int *new_mnt_flag
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
  */
+#ifdef CONFIG_RKP_NS_PROT
+static int do_new_mount(const char __user *dir_name,struct path *path, const char *fstype, int flags,
+			int mnt_flags, const char *name, void *data)
+#else
 static int do_new_mount(struct path *path, const char *fstype, int flags,
 			int mnt_flags, const char *name, void *data)
+#endif
 {
 	struct file_system_type *type;
 	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
@@ -2687,6 +2696,18 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 	err = do_add_mount(real_mount(mnt), path, mnt_flags);
 	if (err)
 		mntput(mnt);
+#ifdef CONFIG_RKP_NS_PROT
+	if(!sys_sb) 
+	{
+		char *mount_point;
+		mount_point = copy_mount_string(dir_name);
+		if(!strcmp(mount_point,"/system")) {
+			rkp_call(RKP_CMDID(0x55),(u64)&sys_sb,(u64)mnt,0,0,0);
+		}
+		kfree(mount_point);
+	}
+	
+#endif
 	return err;
 }
 
@@ -2996,8 +3017,13 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	else if (flags & MS_MOVE)
 		retval = do_move_mount(&path, dev_name);
 	else
+#ifdef CONFIG_RKP_NS_PROT
+		retval = do_new_mount(dir_name,&path, type_page, flags, mnt_flags,
+				      dev_name, data_page);
+#else
 		retval = do_new_mount(&path, type_page, flags, mnt_flags,
 				      dev_name, data_page);
+#endif
 dput_out:
 	path_put(&path);
 	return retval;
@@ -3395,7 +3421,11 @@ static void __init init_mount_tree(void)
 	put_filesystem(type);
 	if (IS_ERR(mnt))
 		panic("Can't create rootfs");
-
+#ifdef CONFIG_RKP_NS_PROT
+	if(!rootfs_sb) {
+		rkp_call(RKP_CMDID(0x55),(u64)&rootfs_sb,(u64)mnt,0,0,0);
+	}
+#endif
 	ns = create_mnt_ns(mnt);
 	if (IS_ERR(ns))
 		panic("Can't allocate initial namespace");

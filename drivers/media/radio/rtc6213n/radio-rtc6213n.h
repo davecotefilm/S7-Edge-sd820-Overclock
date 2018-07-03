@@ -33,6 +33,7 @@
 #include <linux/version.h>
 #include <linux/videodev2.h>
 #include <linux/mutex.h>
+#include <linux/wait.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <asm/unaligned.h>
@@ -167,8 +168,13 @@
 
 #define V4L2_CID_PRIVATE_RSSI			(RW_PRIBASE + (RSSI<<4) + 0)
 
-//cij
 #define INIT_COMPLETION(x) ((x).done = 0)
+#define WAIT_OVER			0
+#define SEEK_WAITING		1
+#define NO_WAIT				2
+#define TUNE_WAITING		4
+#define RDS_WAITING			5
+#define SEEK_CANCEL			6
 
 /**************************************************************************
  * General Driver Definitions
@@ -217,6 +223,8 @@ struct rtc6213n_device {
 extern struct i2c_driver rtc6213n_i2c_driver;
 extern struct video_device rtc6213n_viddev_template;
 extern struct tasklet_struct my_tasklet;
+extern int rtc6213n_wq_flag;
+extern wait_queue_head_t rtc6213n_wq;
 extern int rtc6213n_get_all_registers(struct rtc6213n_device *radio);
 extern int rtc6213n_get_register(struct rtc6213n_device *radio, int regnr);
 extern int rtc6213n_set_register(struct rtc6213n_device *radio, int regnr);

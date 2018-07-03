@@ -58,4 +58,9 @@ struct gpio_keys_platform_data {
 	bool use_syscore;
 };
 
+#if defined(CONFIG_SEC_PM)
+extern int get_pkey_press(void);
+extern int get_vdkey_press(void);
+#endif
+
 #endif

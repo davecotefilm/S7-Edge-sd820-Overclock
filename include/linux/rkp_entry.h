@@ -47,6 +47,14 @@ typedef signed char        s8;
 #define RKP_INIT	RKP_CMDID(0x0)
 #define RKP_DEF_INIT	RKP_CMDID(0x1)
 
+
+#define CFP_ROPP_INIT		RKP_CMDID(0x90)
+#define CFP_ROPP_NEW_KEY	RKP_CMDID(0x91)
+#define CFP_ROPP_NEW_KEY_REENC	RKP_CMDID(0x92)
+#define CFP_ROPP_KEY_DEC	RKP_CMDID(0x93)
+#define CFP_ROPP_RET_KEY	RKP_CMDID(0x94)
+#define CFP_JOPP_INIT		RKP_CMDID(0x98)
+
 #define RKP_INIT_MAGIC 0x5afe0001
 #define RKP_RO_BUFFER  UL(0x800000)
 
@@ -57,7 +65,7 @@ typedef signed char        s8;
 #define   TIMA_DEBUG_LOG_START  0x9D000000
 #define   TIMA_DEBUG_LOG_SIZE   1<<18
 
-#define   TIMA_SEC_LOG          0x9C600000
+#define   TIMA_SEC_LOG          0x9C800000
 #define   TIMA_SEC_LOG_SIZE     0x7000 
 
 extern u8 rkp_pgt_bitmap[];
@@ -68,6 +76,8 @@ extern u8 rkp_started;
 extern void *rkp_ro_alloc(void);
 extern void rkp_ro_free(void *free_addr);
 extern unsigned int is_rkp_ro_page(u64 addr);
+
+extern unsigned long max_pfn;
 
 struct rkp_init {
         u32 magic;
@@ -113,12 +123,12 @@ typedef struct kdp_init
 /*** TODO: We need to export this so it is hard coded 
      at one place*/
 
-#define	RKP_PHYS_OFFSET_MAX		(0x180000ULL << PAGE_SHIFT)
+#define	RKP_PHYS_OFFSET_MAX		(({ max_pfn; }) << PAGE_SHIFT)
 #define RKP_PHYS_ADDR_MASK		((1ULL << 40)-1)
 
-#define	RKP_PGT_BITMAP_LEN	0x20000
-#define	TIMA_ROBUF_START	0x9C608000
-#define	TIMA_ROBUF_SIZE		0x9f8000 /* 10MB - RKP_SEC_LOG_SIZE - RKP_DASHBOARD_SIZE)*/
+#define	RKP_PGT_BITMAP_LEN	0x30000
+#define	TIMA_ROBUF_START	0x9C808000
+#define	TIMA_ROBUF_SIZE		0x7f8000 /* 8MB - RKP_SEC_LOG_SIZE - RKP_DASHBOARD_SIZE)*/
 
 #define RKP_RBUF_VA      (phys_to_virt(TIMA_ROBUF_START))
 #define RO_PAGES  (TIMA_ROBUF_SIZE >> PAGE_SHIFT) // (TIMA_ROBUF_SIZE/PAGE_SIZE)
@@ -156,7 +166,6 @@ static inline u8 rkp_is_protected(u64 pa, u64 *base_addr, int type)
 	if(type && ((phys_addr >= TIMA_ROBUF_START) && (phys_addr  < (TIMA_ROBUF_START + TIMA_ROBUF_SIZE)))) {
 		return 1;	
 	}
-
 	p += (tmp);
 	rindex = index % 64;
 	if (type)
@@ -167,4 +176,3 @@ static inline u8 rkp_is_protected(u64 pa, u64 *base_addr, int type)
 #endif //__ASSEMBLY__
 
 #endif //_RKP_ENTRY_H
-

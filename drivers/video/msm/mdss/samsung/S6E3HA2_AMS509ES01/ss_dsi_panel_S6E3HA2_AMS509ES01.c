@@ -974,6 +974,14 @@ static void dsi_update_mdnie_data(void)
 	mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_BLUE_OFFSET] = ADDRESS_SCR_WHITE_BLUE;
 	mdnie_data.dsi0_rgb_sensor_mdnie_1_size = DSI0_RGB_SENSOR_MDNIE_1_SIZE;
 	mdnie_data.dsi0_rgb_sensor_mdnie_2_size = DSI0_RGB_SENSOR_MDNIE_2_SIZE;
+	mdnie_data.dsi0_white_default_r = 0xff;
+	mdnie_data.dsi0_white_default_g = 0xff;
+	mdnie_data.dsi0_white_default_b = 0xff;
+	mdnie_data.dsi0_white_rgb_enabled = 0;
+	mdnie_data.dsi1_white_default_r = 0xff;
+	mdnie_data.dsi1_white_default_g = 0xff;
+	mdnie_data.dsi1_white_default_b = 0xff;
+	mdnie_data.dsi1_white_rgb_enabled = 0;
 }
 
 static void  mdss_panel_init(struct samsung_display_driver_data *vdd)
@@ -1029,8 +1037,8 @@ static void  mdss_panel_init(struct samsung_display_driver_data *vdd)
 	/* A3 line panel data parsing fn */
 	vdd->panel_func.parsing_otherline_pdata = NULL;
 
-	/* send 2c short pck before sending image date to reset DE (only for HA3 ddi) */
-	vdd->send_2c_cmd = false;
+	/* send recovery pck before sending image date (for ESD recovery) */
+	vdd->send_esd_recovery = false;
 
 	dsi_update_mdnie_data();
 }

@@ -57,12 +57,17 @@ C_h	.req	x12
 D_l	.req	x13
 D_h	.req	x14
 
+	.weak memmove
+ENTRY(__memmove)
+#ifdef CONFIG_RKP_CFP_JOPP
+FALLTHROUGH(memmove)
+#endif
 ENTRY(memmove)
 	cmp	dstin, src
-	b.lo	memcpy
+	b.lo	__memcpy
 	add	tmp1, src, count
 	cmp	dstin, tmp1
-	b.hs	memcpy		/* No overlap.  */
+	b.hs	__memcpy		/* No overlap.  */
 
 	add	dst, dstin, count
 	add	src, src, count
@@ -194,4 +199,5 @@ ENTRY(memmove)
 	tst	count, #0x3f
 	b.ne	.Ltail63
 	ret
-ENDPROC(memmove)
+ENDPIPROC(memmove)
+ENDPROC(__memmove)

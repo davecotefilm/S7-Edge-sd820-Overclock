@@ -28,6 +28,7 @@ struct boot_event {
 	unsigned int type;
 	const char *string;
 	unsigned int time;
+	unsigned int ktime;
 };
 
 enum boot_events_type {
@@ -35,54 +36,68 @@ enum boot_events_type {
 	SYSTEM_LK_LOGO_DISPLAY,
 	SYSTEM_END_LK,
 	SYSTEM_START_INIT_PROCESS,
-    PLATFORM_START_PRELOAD,
-    PLATFORM_END_PRELOAD,
+    	PLATFORM_START_PRELOAD,
+   	PLATFORM_END_PRELOAD,
 	PLATFORM_START_INIT_AND_LOOP,
 	PLATFORM_START_PACKAGEMANAGERSERVICE,
 	PLATFORM_END_PACKAGEMANAGERSERVICE,
+    	PLATFORM_START_NETWORK,
+    	PLATFORM_END_NETWORK,
 	PLATFORM_END_INIT_AND_LOOP,
 	PLATFORM_PERFORMENABLESCREEN,
 	PLATFORM_ENABLE_SCREEN,
 	PLATFORM_BOOT_COMPLETE,
 	PLATFORM_VOICE_SVC,
 	PLATFORM_DATA_SVC,
-    PLATFORM_START_NETWORK,
-    PLATFORM_END_NETWORK,
 	PLATFORM_PHONEAPP_ONCREATE,
 	RIL_UNSOL_RIL_CONNECTED,
 	RIL_SETRADIOPOWER_ON,
 	RIL_SETUICCSUBSCRIPTION,
-    RIL_SIM_RECORDSLOADED,
-    RIL_RUIM_RECORDSLOADED,
+    	RIL_SIM_RECORDSLOADED,
+    	RIL_RUIM_RECORDSLOADED,
+	RIL_SETUPDATA_RECORDSLOADED,
 	RIL_SETUPDATACALL,
+    	RIL_RESPONSE_SETUPDATACALL,
+   	RIL_DATA_CONNECTION_ATTACHED,
+    	RIL_DCT_IMSI_READY,
+    	RIL_COMPLETE_CONNECTION,
+	RIL_CS_REG,
+	RIL_GPRS_ATTACH,
 };
 
 static struct boot_event boot_events[] = {
-	{SYSTEM_START_LK,"lk start",0},
-	{SYSTEM_LK_LOGO_DISPLAY,"lk logo display",0},
-	{SYSTEM_END_LK,"lk end",0},
-	{SYSTEM_START_INIT_PROCESS,"!@Boot: start init process",0},
-	{PLATFORM_START_PRELOAD,"!@Boot: Begin of preload()",0},
-	{PLATFORM_END_PRELOAD,"!@Boot: End of preload()",0},
-	{PLATFORM_START_INIT_AND_LOOP,"!@Boot: Entered the Android system server!",0},
-	{PLATFORM_START_PACKAGEMANAGERSERVICE,"!@Boot: Start PackageManagerService",0},
-	{PLATFORM_END_PACKAGEMANAGERSERVICE,"!@Boot: End PackageManagerService",0},
-	{PLATFORM_END_INIT_AND_LOOP,"!@Boot: Loop forever",0},
-	{PLATFORM_PERFORMENABLESCREEN,"!@Boot: performEnableScreen",0},
-	{PLATFORM_ENABLE_SCREEN,"!@Boot: Enabling Screen!",0},
-	{PLATFORM_BOOT_COMPLETE,"!@Boot: bootcomplete",0},
-	{PLATFORM_VOICE_SVC,"!@Boot: Voice SVC is acquired",0},
-	{PLATFORM_DATA_SVC,"!@Boot: Data SVC is acquired",0},
-    {PLATFORM_START_NETWORK,"!@Boot_DEBUG: start networkManagement",0},
-    {PLATFORM_END_NETWORK,"!@Boot_DEBUG: end networkManagement",0},
-	{PLATFORM_PHONEAPP_ONCREATE,"!@Boot_SVC : PhoneApp OnCrate",0},
-	{RIL_UNSOL_RIL_CONNECTED,"!@Boot_SVC : RIL_UNSOL_RIL_CONNECTED",0},
-	{RIL_SETRADIOPOWER_ON,"!@Boot_SVC : setRadioPower on",0},
-	{RIL_SETUICCSUBSCRIPTION,"!@Boot_SVC : setUiccSubscription",0},
-    {RIL_SIM_RECORDSLOADED,"!@Boot_SVC : SIM onAllRecordsLoaded",0},
-    {RIL_RUIM_RECORDSLOADED,"!@Boot_SVC : RUIM onAllRecordsLoaded",0},
-	{RIL_SETUPDATACALL,"!@Boot_SVC : setupDataCall",0},
-	{0,NULL,0},
+	{SYSTEM_START_LK,"lk start",0,0},
+	{SYSTEM_LK_LOGO_DISPLAY,"lk logo display",0,0},
+	{SYSTEM_END_LK,"lk end",0,0},
+	{SYSTEM_START_INIT_PROCESS,"!@Boot: start init process",0,0},
+	{PLATFORM_START_PRELOAD,"!@Boot: Begin of preload()",0,0},
+	{PLATFORM_END_PRELOAD,"!@Boot: End of preload()",0,0},
+	{PLATFORM_START_INIT_AND_LOOP,"!@Boot: Entered the Android system server!",0,0},
+	{PLATFORM_START_PACKAGEMANAGERSERVICE,"!@Boot: Start PackageManagerService",0,0},
+	{PLATFORM_END_PACKAGEMANAGERSERVICE,"!@Boot: End PackageManagerService",0,0},
+	{PLATFORM_START_NETWORK,"!@Boot_DEBUG: start networkManagement",0,0},
+	{PLATFORM_END_NETWORK,"!@Boot_DEBUG: end networkManagement",0,0},
+	{PLATFORM_END_INIT_AND_LOOP,"!@Boot: Loop forever",0,0},
+	{PLATFORM_PERFORMENABLESCREEN,"!@Boot: performEnableScreen",0,0},
+	{PLATFORM_ENABLE_SCREEN,"!@Boot: Enabling Screen!",0,0},
+	{PLATFORM_BOOT_COMPLETE,"!@Boot: bootcomplete",0,0},
+	{PLATFORM_VOICE_SVC,"!@Boot: Voice SVC is acquired",0,0},
+	{PLATFORM_DATA_SVC,"!@Boot: Data SVC is acquired",0,0},
+	{PLATFORM_PHONEAPP_ONCREATE,"!@Boot_SVC : PhoneApp OnCrate",0,0},
+	{RIL_UNSOL_RIL_CONNECTED,"!@Boot_SVC : RIL_UNSOL_RIL_CONNECTED",0,0},
+	{RIL_SETRADIOPOWER_ON,"!@Boot_SVC : setRadioPower on",0,0},
+	{RIL_SETUICCSUBSCRIPTION,"!@Boot_SVC : setUiccSubscription",0,0},
+	{RIL_SIM_RECORDSLOADED,"!@Boot_SVC : SIM onAllRecordsLoaded",0,0},
+	{RIL_RUIM_RECORDSLOADED,"!@Boot_SVC : RUIM onAllRecordsLoaded",0,0},
+	{RIL_SETUPDATA_RECORDSLOADED,"!@Boot_SVC : SetupDataRecordsLoaded",0,0},
+	{RIL_SETUPDATACALL,"!@Boot_SVC : setupDataCall",0,0},
+	{RIL_RESPONSE_SETUPDATACALL,"!@Boot_SVC : Response setupDataCall",0,0},
+	{RIL_DATA_CONNECTION_ATTACHED,"!@Boot_SVC : onDataConnectionAttached",0,0},
+	{RIL_DCT_IMSI_READY,"!@Boot_SVC : IMSI Ready",0,0},
+	{RIL_COMPLETE_CONNECTION,"!@Boot_SVC : completeConnection",0,0},
+	{RIL_CS_REG,"!@Boot_SVC : CS Registered",0,0},
+	{RIL_GPRS_ATTACH,"!@Boot_SVC : GPRS Attached",0,0},
+	{0,NULL,0,0},
 };
 
 static int sec_boot_stat_proc_show(struct seq_file *m, void *v)
@@ -92,17 +107,20 @@ static int sec_boot_stat_proc_show(struct seq_file *m, void *v)
 	i = 0;
 	delta = 0;
 
-	seq_printf(m,"boot event                      time (ms)" \
-				"        delta\n");
+	seq_printf(m,"boot event                                   " \
+			    "     time     ktime    delta\n");
 	seq_printf(m,"-----------------------------------------" \
-				"------------\n");
-
+				"---------------------------------\n");
 	while(boot_events[i].string != NULL)
 	{
-		seq_printf(m,"%-50s : %5d    %5d\n",boot_events[i].string,
-				boot_events[i].time*1000/32768,	delta);
+		seq_printf(m,"%-45s : %6d    %6d    %6d\n",boot_events[i].string,
+				boot_events[i].time*1000/32768, boot_events[i].ktime, delta);
 		delta = boot_events[i+1].time*1000/32768 - \
 			boot_events[i].time*1000/32768;
+
+		if(i == PLATFORM_BOOT_COMPLETE)
+			seq_printf(m,"\n");
+
 		i = i + 1;
 	}
 
@@ -124,14 +142,19 @@ static const struct file_operations sec_boot_stat_proc_fops = {
 void sec_boot_stat_add(const char * c)
 {
 	int i;
+	unsigned long long t = 0;
 
 	i = 0;
 	while(boot_events[i].string != NULL)
 	{
 		if(strcmp(c, boot_events[i].string) == 0)
 		{
-			if (boot_events[i].time == 0)
-                boot_events[i].time = get_boot_stat_time();
+			if (boot_events[i].time == 0) {
+                		boot_events[i].time = get_boot_stat_time();
+				t = local_clock();
+				do_div(t, 1000000);
+				boot_events[i].ktime = (unsigned int)t;
+			}
 			break;
 		}
 		i = i + 1;
@@ -143,8 +166,13 @@ static struct device *sec_bsp_dev;
 static ssize_t store_boot_stat(struct device *dev,
 				struct device_attribute *attr, const char *buf, size_t count)
 {
+	unsigned long long t = 0;
+	
 	if(!strncmp(buf,"!@Boot: start init process",26)) {
 		boot_events[SYSTEM_START_INIT_PROCESS].time = get_boot_stat_time();
+		t = local_clock();
+		do_div(t, 1000000);
+		boot_events[SYSTEM_START_INIT_PROCESS].ktime = (unsigned int)t; 
 	}
 
 	return count;

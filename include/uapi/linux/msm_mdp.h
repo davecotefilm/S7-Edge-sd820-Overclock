@@ -109,6 +109,11 @@
 #define MDSS_MDP_HW_REV_110	MDSS_MDP_REV(1, 10, 0) /* 8992 v1.0 */
 #define MDSS_MDP_HW_REV_200	MDSS_MDP_REV(2, 0, 0) /* 8092 v1.0 */
 #define MDSS_MDP_HW_REV_112	MDSS_MDP_REV(1, 12, 0) /* 8952 v1.0 */
+#define MDSS_MDP_HW_REV_114	MDSS_MDP_REV(1, 14, 0) /* 8937 v1.0 */
+#define MDSS_MDP_HW_REV_115	MDSS_MDP_REV(1, 15, 0) /* msm8917 */
+#define MDSS_MDP_HW_REV_116	MDSS_MDP_REV(1, 16, 0) /* msm8953 */
+#define MDSS_MDP_HW_REV_300	MDSS_MDP_REV(3, 0, 0)  /* msmcobalt */
+#define MDSS_MDP_HW_REV_301	MDSS_MDP_REV(3, 0, 1)  /* msmcobalt v1.0 */
 
 enum {
 	NOTIFY_UPDATE_INIT,
@@ -204,10 +209,13 @@ enum {
 	MDP_RGBX_1010102_UBWC,
 	MDP_Y_CBCR_H2V2_P010,
 	MDP_Y_CBCR_H2V2_TP10_UBWC,
+	MDP_CRYCBY_H2V1,  /* CrYCbY interleave */
 	MDP_IMGTYPE_LIMIT1 = MDP_IMGTYPE_END,
 	MDP_FB_FORMAT = MDP_IMGTYPE2_START,    /* framebuffer format */
 	MDP_IMGTYPE_LIMIT2 /* Non valid image type after this enum */
 };
+
+#define MDP_CRYCBY_H2V1 MDP_CRYCBY_H2V1
 
 enum {
 	PMEM_IMG,
@@ -335,7 +343,7 @@ struct mdp_csc {
  * to include
  */
 
-#define MDP_BLIT_REQ_VERSION 2
+#define MDP_BLIT_REQ_VERSION 3
 
 struct color {
 	uint32_t r;
@@ -355,6 +363,7 @@ struct mdp_blit_req {
 	uint32_t flags;
 	int sharpening_strength;  /* -127 <--> 127, default 64 */
 	uint8_t color_space;
+	uint32_t fps;
 };
 
 struct mdp_blit_req_list {
@@ -938,6 +947,7 @@ struct mdp_ar_gc_lut_data {
 	uint32_t offset;
 };
 
+#define MDP_PP_PGC_ROUNDING_ENABLE 0x10
 struct mdp_pgc_lut_data {
 	uint32_t version;
 	uint32_t block;
@@ -994,10 +1004,15 @@ struct mdp_pa_cfg_data {
 	struct mdp_pa_cfg pa_data;
 };
 
+#define MDP_DITHER_DATA_V1_7_SZ 16
+
 struct mdp_dither_data_v1_7 {
 	uint32_t g_y_depth;
 	uint32_t r_cr_depth;
 	uint32_t b_cb_depth;
+	uint32_t len;
+	uint32_t data[MDP_DITHER_DATA_V1_7_SZ];
+	uint32_t temporal_en;
 };
 
 struct mdp_dither_cfg_data {
@@ -1111,6 +1126,7 @@ struct mdss_ad_init {
 	uint8_t logo_h;
 	uint32_t alpha;
 	uint32_t alpha_base;
+	uint32_t al_thresh;
 	uint32_t bl_lin_len;
 	uint32_t bl_att_len;
 	uint32_t *bl_lin;

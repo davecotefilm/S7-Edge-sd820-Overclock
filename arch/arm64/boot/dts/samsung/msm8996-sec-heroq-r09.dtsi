@@ -494,7 +494,7 @@
 		/delete-property/qcom,wsa-aux-dev-prefix;
 	};
 
-	pcm1: qcom,msm-pcm-ull-post-processing {
+	pcm1: qcom,msm-pcm-low-latency {
 		compatible = "qcom,msm-pcm-dsp";
 		qcom,msm-pcm-dsp-id = <1>;
 		qcom,msm-pcm-low-latency;
@@ -633,8 +633,8 @@
 		interrupts = <0 1>;
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0xffffffff>;
-		interrupt-map = <0 &intc 0 113 0
-			    1 &intc 0 239 0>;
+		interrupt-map = <0 &intc 0 0 113 0
+			    1 &intc 0 0 239 0>;
 
 		qcom,bam-tx-ep-pipe-index = <0>;
 		qcom,bam-rx-ep-pipe-index = <1>;
@@ -642,6 +642,12 @@
 		clock-names = "core_clk", "iface_clk";
 		clocks = <&clock_gcc clk_gcc_blsp2_uart1_apps_clk>,
 		    <&clock_gcc clk_gcc_blsp2_ahb_clk>;
+
+		qcom,tx-gpio = <&tlmm 53 0>;
+		qcom,rx-gpio = <&tlmm 54 0>;
+		qcom,cts-gpio = <&tlmm 55 0>;
+		qcom,rfr-gpio = <&tlmm 56 0>;
+
 		pinctrl-names = "sleep", "default";
 		pinctrl-0 = <&blsp2_uart1_sleep>;
 		pinctrl-1 = <&blsp2_uart1_active>;
@@ -995,14 +1001,20 @@
 	qcom,gpio-connect = <&tlmm 79 0>;
 };
 
+&wcd_rst_gpio {
+	compatible = "qcom,wcd-gpio-ctrl";
+	qcom,cdc-rst-n-gpio = <&tlmm 74 0>;
+	pinctrl-names = "aud_active", "aud_sleep";
+	pinctrl-0 = <&cdc_reset_active>;
+	pinctrl-1 = <&cdc_reset_sleep>;
+};
+	
 &slim_msm {
+	/delete-node/msm_dai_slim;
+
 	tasha_codec {
-		qcom,cdc-reset-gpio = <&tlmm 74 0>;
 		qcom,cdc-micbias2-mv = <2700>;
 		qcom,cdc-dmic-sample-rate = <2400000>;
-  		pinctrl-names = "default", "suspend";
-		pinctrl-0 = <&cdc_reset_gpio_active>;
-		pinctrl-1 = <&cdc_reset_gpio_suspend>;
 		/delete-node/swr_master;
 	};
 };
@@ -1113,6 +1125,14 @@
 		qcom,vin-sel = <2>;		/* Logical 1 voltage value 1.8v */
 		qcom,src-sel = <2>;		/* Clock */
 		qcom,master-en = <1>;
+		status = "okay";
+	};
+
+	gpio@cb00 { /* GPIO 12 */
+		qcom,mode = <0>;		/* Digital in */
+		qcom,pull = <4>;		/* QPNP_PIN_PULL_DN */
+		qcom,vin-sel = <2>;		/* Logical 1 voltage value 1.8v */
+		qcom,src-sel = <0>;		/* Constant */
 		status = "okay";
 	};
 

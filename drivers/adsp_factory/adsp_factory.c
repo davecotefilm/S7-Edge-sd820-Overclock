@@ -24,7 +24,7 @@
 #include <linux/err.h>
 #include "adsp.h"
 
-#define RAWDATA_TIMER_MS	200
+#define RAWDATA_TIMER_MS	2000
 #define RAWDATA_TIMER_MARGIN_MS	20
 
 /* The netlink socket */
@@ -38,8 +38,23 @@ int sensors_register(struct device **dev, void *drvdata,
 void sensors_unregister(struct device *dev,
 	struct device_attribute *attributes[]);
 
+int adsp_get_sensor_data(int sensor_type)
+{
+	int val = 0;
+
+	switch (sensor_type) {
+	case ADSP_FACTORY_PROX:
+		val = (int)data->sensor_data[ADSP_FACTORY_PROX].prox;
+		break;
+	default:
+		break;
+	}
+
+	return val;
+}
+
 /* Function used to send message to the user space */
-int adsp_unicast(void* param, int param_size, int type, u32 portid, int flags)
+int adsp_unicast(void *param, int param_size, int type, u32 portid, int flags)
 {
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
@@ -68,7 +83,7 @@ int adsp_unicast(void* param, int param_size, int type, u32 portid, int flags)
 	return ret;
 }
 
-int adsp_factory_register(int type,
+int adsp_factory_register(unsigned int type,
 	struct device_attribute *attributes[])
 {
 	int ret = 0;
@@ -99,6 +114,9 @@ int adsp_factory_register(int type,
 	case ADSP_FACTORY_SSC_CORE:
 		dev_name = "ssc_core";
 		break;
+	case ADSP_FACTORY_HH_HOLE:
+		dev_name = "hidden_hole";
+		break;
 	default:
 		dev_name = "unknown_sensor";
 		break;
@@ -108,17 +126,25 @@ int adsp_factory_register(int type,
 	ret = sensors_register(&data->sensor_device[type], data,
 		data->sensor_attr[type], dev_name);
 
-	pr_info("[FACTORY] %s ptr:%p\n", __func__, data->sensor_device[type]);
+	data->sysfs_created[type] = true;
+	pr_info("[FACTORY] %s - type:%u ptr:%p\n",
+		__func__, type, data->sensor_device[type]);
 
 	return ret;
 }
 
-int adsp_factory_unregister(int type)
+int adsp_factory_unregister(unsigned int type)
 {
-	pr_info("[FACTORY] %s ptr:%p\n", __func__, data->sensor_device[type]);
+	pr_info("[FACTORY] %s - type:%u ptr:%p\n",
+		__func__, type, data->sensor_device[type]);
 
-	sensors_unregister(data->sensor_device[type], data->sensor_attr[type]);
-
+	if (data->sysfs_created[type]) {
+		sensors_unregister(data->sensor_device[type],
+			data->sensor_attr[type]);
+		data->sysfs_created[type] = false;
+	} else
+		pr_info("[FACTORY] %s: skip sensors_unregister for type %u\n",
+			__func__, type);
 	return 0;
 }
 
@@ -161,11 +187,13 @@ bool adsp_start_raw_data(int sensor_type)
 	unsigned long timeout = jiffies + RAWDATA_TIMER_MS;
 
 	if (!(data->raw_data_stream & (1 << sensor_type))) {
-		pr_info("[FACTORY] %s: sensor_type:%d Start!!!\n", __func__, sensor_type);
+		pr_info("[FACTORY] %s: sensor_type:%d Start!!!\n",
+			__func__, sensor_type);
 		mutex_lock(&data->raw_stream_lock[sensor_type]);
 		data->raw_data_stream |= (1 << sensor_type);
 		message.sensor_type = sensor_type;
-		adsp_unicast(&message, sizeof(message), NETLINK_MESSAGE_GET_RAW_DATA, 0, 0);
+		adsp_unicast(&message, sizeof(message),
+			NETLINK_MESSAGE_GET_RAW_DATA, 0, 0);
 		mutex_unlock(&data->raw_stream_lock[sensor_type]);
 	}
 
@@ -189,12 +217,14 @@ void adsp_stop_raw_data(int sensor_type)
 	struct msg_data message;
 
 	if ((data->raw_data_stream & (1 << sensor_type))) {
-		pr_info("[FACTORY] %s: sensor_type:%d Stop!!!\n", __func__, sensor_type);
+		pr_info("[FACTORY] %s: sensor_type:%d Stop!!!\n",
+			__func__, sensor_type);
 		mutex_lock(&data->raw_stream_lock[sensor_type]);
 		data->raw_data_stream &= ~(1 << sensor_type);
 		data->data_ready_flag &= ~(1 << sensor_type);
 		message.sensor_type = sensor_type;
-		adsp_unicast(&message, sizeof(message), NETLINK_MESSAGE_STOP_RAW_DATA, 0, 0);
+		adsp_unicast(&message, sizeof(message),
+			NETLINK_MESSAGE_STOP_RAW_DATA, 0, 0);
 		mutex_unlock(&data->raw_stream_lock[sensor_type]);
 	}
 }
@@ -219,6 +249,9 @@ static void factory_adsp_command_timer(unsigned long value)
 	schedule_work(&data->timer_stop_data_work);
 }
 
+#ifdef CONFIG_SUPPORT_HIDDEN_HOLE
+extern void hidden_hole_data_read(struct adsp_data *data);
+#endif
 static int process_received_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	switch (nlh->nlmsg_type) {
@@ -246,7 +279,13 @@ static int process_received_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct sensor_calib_value *pdata =
 			(struct sensor_calib_value *)NLMSG_DATA(nlh);
 		pr_info("[FACTORY] %s: NETLINK_MESSAGE_CALIB_DATA_RCVD type=%d, x=%d, y=%d, z=%d\n",
-			__func__, pdata->sensor_type, pdata->x, pdata->y, pdata->z);
+			__func__, pdata->sensor_type,
+			pdata->x, pdata->y, pdata->z);
+#ifdef CONFIG_SUPPORT_PROX_AUTO_CAL
+		if (pdata->sensor_type == ADSP_FACTORY_PROX)
+			pr_info("[FACTORY] %s: DH=%d, DL=%d\n", __func__,
+				pdata->threDetectLo, pdata->threDetectHi);
+#endif
 		data->sensor_calib_data[pdata->sensor_type] = *pdata;
 		data->calib_ready_flag |= 1 << pdata->sensor_type;
 		break;
@@ -266,7 +305,8 @@ static int process_received_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct sensor_selftest_show_result *pdata =
 			(struct sensor_selftest_show_result *)NLMSG_DATA(nlh);
 		pr_info("[FACTORY] %s: NETLINK_MESSAGE_SELFTEST_SHOW_RCVD type=%d, SelftestResult1=%d, SelftestResult2=%d\n",
-			__func__, pdata->sensor_type, pdata->result1, pdata->result2);
+			__func__, pdata->sensor_type,
+			pdata->result1, pdata->result2);
 		data->sensor_selftest_result[pdata->sensor_type] = *pdata;
 		data->selftest_ready_flag |= 1 << pdata->sensor_type;
 		break;
@@ -276,7 +316,8 @@ static int process_received_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct sensor_gyro_st_value *pdata =
 			(struct sensor_gyro_st_value *)NLMSG_DATA(nlh);
 		pr_info("[FACTORY] %s: NETLINK_MESSAGE_GYRO_SELFTEST_SHOW_RCVD type=%d, SelftestResult1=%d, SelftestResult2=%d\n",
-			__func__, pdata->sensor_type, pdata->result1, pdata->result2);
+			__func__, pdata->sensor_type,
+			pdata->result1, pdata->result2);
 		data->gyro_st_result = *pdata;
 		data->selftest_ready_flag |= 1 << pdata->sensor_type;
 		break;
@@ -297,7 +338,8 @@ static int process_received_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct sensor_accel_lpf_value *pdata =
 			(struct sensor_accel_lpf_value *)NLMSG_DATA(nlh);
 		pr_info("[FACTORY] %s: NETLINK_MESSAGE_ACCEL_LPF_ON_OFF type=%d, result=%d, lpf_on_off=%d\n",
-			__func__, pdata->sensor_type, pdata->result, pdata->lpf_on_off);
+			__func__, pdata->sensor_type,
+			pdata->result, pdata->lpf_on_off);
 		data->accel_lpf_result = *pdata;
 		data->selftest_ready_flag |= 1 << pdata->sensor_type;
 		break;
@@ -342,6 +384,17 @@ static int process_received_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		data->dump_ready_flag |= 1 << pdata->sensor_type;
 		break;
 	}
+#ifdef CONFIG_SUPPORT_HIDDEN_HOLE
+	case NETLINK_MESSAGE_HIDDEN_HOLE_READ_DATA:
+	{
+		struct sensor_status *pdata =
+			(struct sensor_status *)NLMSG_DATA(nlh);
+		pr_info("[FACTORY] %s: NETLINK_MESSAGE_HIDDEN_HOLE_READ_DATA type=%d\n",
+			__func__, pdata->sensor_type);
+		hidden_hole_data_read(data);
+		break;
+	}
+#endif
 	default:
 		break;
 	}
@@ -395,9 +448,11 @@ static int __init factory_adsp_init(void)
 
 	INIT_WORK(&data->timer_stop_data_work, stop_raw_data_worker);
 	for (i = 0; i < ADSP_FACTORY_SENSOR_MAX; i++) {
-		setup_timer(&data->command_timer[i], factory_adsp_command_timer, (unsigned long)i);
+		setup_timer(&data->command_timer[i],
+			factory_adsp_command_timer, (unsigned long)i);
 		add_timer(&data->command_timer[i]);
 		mutex_init(&data->raw_stream_lock[i]);
+		data->sysfs_created[i] = false;
 	}
 
 	pr_info("[FACTORY] %s: Timer Init\n", __func__);
@@ -407,6 +462,7 @@ static int __init factory_adsp_init(void)
 static void __exit factory_adsp_exit(void)
 {
 	int i;
+
 	for (i = 0; i < ADSP_FACTORY_SENSOR_MAX; i++) {
 		del_timer(&data->command_timer[i]);
 		mutex_destroy(&data->raw_stream_lock[i]);

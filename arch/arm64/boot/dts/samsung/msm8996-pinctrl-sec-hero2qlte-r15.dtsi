@@ -494,6 +494,7 @@
 			};
 		};
 
+		/delete-node/ i2c_8;
 		i2c_8 {
 			i2c_8_active: i2c_8_active {
 				i2c_8 {
@@ -1117,32 +1118,6 @@
 					drive-strength = <8>;   /* 8 mA */
 					bias-pull-down;           /* PULL DOWN */
 				};
-			};
-		};
-
-		cdc_reset_gpio_active: cdc_reset_gpio_active {
-			mux {
-				pins = "gpio74";
-				function = "gpio";
-			};
-			config {
-				pins = "gpio74";
-				drive-strength = <16>;   /* 16 mA */
-				bias-disable; /* No PULL */
-				output-high;
-			};
-		};
-
-		cdc_reset_gpio_suspend: cdc_reset_gpio_suspend {
-			mux {
-				pins = "gpio74";
-				function = "gpio";
-			};
-			config {
-				pins = "gpio74";
-				drive-strength = <16>;   /* 16 mA */
-				bias-disable; /* No PULL */
-				output-low;
 			};
 		};
 

@@ -30,6 +30,7 @@
 #include <linux/hashtable.h>
 #include <linux/ipc_router.h>
 #include <linux/ipc_logging.h>
+#include <linux/vmalloc.h>
 
 #include <soc/qcom/msm_qmi_interface.h>
 
@@ -912,7 +913,8 @@ static int qmi_encode_and_send_req(struct qmi_txn **ret_txn_handle,
 	}
 
 	/* Allocate Transaction Info */
-	txn_handle = kzalloc(sizeof(struct qmi_txn), GFP_KERNEL);
+	pr_err("%s: called\n", __func__);
+	txn_handle = vzalloc(sizeof(struct qmi_txn));
 	if (!txn_handle) {
 		pr_err("%s: Failed to allocate txn handle\n", __func__);
 		mutex_unlock(&handle->handle_lock);
@@ -1005,7 +1007,7 @@ encode_and_send_req_err3:
 encode_and_send_req_err2:
 	kfree(encoded_req);
 encode_and_send_req_err1:
-	kfree(txn_handle);
+	vfree(txn_handle);
 	mutex_unlock(&handle->handle_lock);
 	return rc;
 }
@@ -1061,7 +1063,7 @@ int qmi_send_req_wait(struct qmi_handle *handle,
 
 send_req_wait_err:
 	list_del(&txn_handle->list);
-	kfree(txn_handle);
+	vfree(txn_handle);
 	wake_up(&handle->reset_waitq);
 	mutex_unlock(&handle->handle_lock);
 	return rc;

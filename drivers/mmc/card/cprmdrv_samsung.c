@@ -116,7 +116,6 @@ static int CPRM_CMD_SecureRW(struct mmc_card *card,
 
 	memset(&data, 0, sizeof(struct mmc_data));
 
-	data.timeout_ns = 100000000;
 	data.timeout_clks = 0;
 	data.blksz = length;
 	data.blocks = 1;
@@ -124,6 +123,7 @@ static int CPRM_CMD_SecureRW(struct mmc_card *card,
 	data.sg = &sg;
 	data.sg_len = 1;
 
+	mmc_set_data_timeout(&data, card);
 	stop.opcode = MMC_STOP_TRANSMISSION;
 	stop.arg = 0;
 	stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
@@ -231,8 +231,7 @@ static int CPRM_CMD_SecureMultiRW(struct mmc_card *card,
 
 	memset(&data, 0, sizeof(struct mmc_data));
 
-		data.timeout_ns = 100000000;
-		data.timeout_clks = 0;
+	data.timeout_clks = 0;
 	data.blksz = 512;
 	data.blocks = (length + 511) / 512;
 
@@ -240,6 +239,7 @@ static int CPRM_CMD_SecureMultiRW(struct mmc_card *card,
 	data.sg = &sg;
 	data.sg_len = 1;
 
+	mmc_set_data_timeout(&data, card);
 	stop.opcode = MMC_STOP_TRANSMISSION;
 	stop.arg = 0;
 	stop.flags = MMC_RSP_R1B | MMC_CMD_AC;

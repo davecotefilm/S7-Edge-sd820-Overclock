@@ -19,10 +19,6 @@
 #ifndef _ET320_LINUX_DIRVER_H_
 #define _ET320_LINUX_DIRVER_H_
 
-#ifdef ENABLE_SENSORS_FPRINT_SECURE
-#define FEATURE_SPI_WAKELOCK
-#endif /* CONFIG_SEC_FACTORY */
-
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
@@ -90,6 +86,9 @@
 #define FP_SET_LOCKSCREEN				0x16
 #define FP_SET_WAKE_UP_SIGNAL				0x17
 #endif
+
+#define FP_POWER_CONTROL_ET510				0x18
+#define FP_IOCTL_RESERVED_01				0x19
 
 #define FP_EEPROM_WREN					0x90
 #define FP_EEPROM_WRDI					0x91

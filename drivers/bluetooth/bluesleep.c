@@ -203,26 +203,25 @@ static void hsuart_power(int on)
 		return;
 	}
 
-	clk_cnt = bluesleep_get_uart_clock_count();
-	client_cnt = bluesleep_get_uart_client_count();
+	if (on)
+	{
+		clk_cnt = bluesleep_get_uart_clock_count();
+		client_cnt = bluesleep_get_uart_client_count();
 
-	if (on && (clk_cnt >= 1 || client_cnt >= 1)) {
-		BT_DBG("hsuart_power called. But HS Uart clock count is %d && client count is %d", clk_cnt, client_cnt);
-		return;
-	}
-
-	if (on) {
-		if(test_bit(BT_TXDATA, &flags)) {
+		if (clk_cnt >= 1 || client_cnt >= 1)
+		{
+			BT_DBG("hsuart_power called. But HS Uart clock count is %d && client count is %d", clk_cnt, client_cnt);
+		}
+		else
+		{
 			BT_DBG("hsuart_power on");
 			msm_hs_request_clock_on(bsi->uport);
-			msm_hs_set_mctrl(bsi->uport, TIOCM_RTS);
-			return;
 		}
-
-		BT_DBG("hsuart_power on");
-		msm_hs_request_clock_on(bsi->uport);
 		msm_hs_set_mctrl(bsi->uport, TIOCM_RTS);
-	} else {
+	}
+
+	else
+	{
 		BT_DBG("hsuart_power off");
 		msm_hs_set_mctrl(bsi->uport, 0);
 		msm_hs_request_clock_off(bsi->uport);
@@ -961,12 +960,14 @@ static int bluesleep_probe(struct platform_device *pdev)
 		goto free_bsi;
 	}
 
-	bsi->host_wake_irq = gpio_to_irq(bsi->host_wake);
-	if (bsi->host_wake_irq < 0) {
+	ret = gpio_to_irq(bsi->host_wake);
+
+	if (ret < 0) {
 		BT_ERR("couldn't find host_wake irq");
 		ret = -ENODEV;
 		goto free_bt_host_wake;
 	} else {
+		bsi->host_wake_irq = ret;
 		BT_ERR("[BT] hostwake irq is %d", bsi->host_wake_irq);
 	}
 	bsi->irq_polarity = POLARITY_HIGH;/*anything else*/

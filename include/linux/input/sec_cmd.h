@@ -9,13 +9,19 @@
 #include <linux/workqueue.h>
 #include <linux/stat.h>
 #include <linux/err.h>
+#include <linux/input.h>
+#ifdef CONFIG_SEC_SYSFS
+#include <linux/sec_sysfs.h>
+#endif
 
 #ifndef CONFIG_SEC_FACTORY
 #define USE_SEC_CMD_QUEUE
 #include <linux/kfifo.h>
 #endif
 
+#ifndef CONFIG_SEC_SYSFS
 extern struct class *sec_class;
+#endif
 
 #define SEC_CLASS_DEVT_TSP		10
 #define SEC_CLASS_DEVT_TKEY		11
