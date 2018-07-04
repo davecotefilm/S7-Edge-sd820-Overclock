@@ -3,14 +3,14 @@
 export ARCH=arm64
 export SEC_BUILD_OPTION_HW_REVISION=02
 
-ROOT_DIR=$(pwd)
-OUT_DIR=$ROOT_DIR/out
+ROOT_DIR=$(pwd)/DAVECOTEFILM_zImage
+OUT_DIR=$(pwd)/out_zImage
 BUILDING_DIR=$OUT_DIR/kernel_obj
 
 JOB_NUMBER=`grep processor /proc/cpuinfo|wc -l`
 
 #CROSS_COMPILER=$ROOT_DIR/lazy-prebuilt/aarch64-linux-android-4.9/bin/aarch64-linux-android-
-CROSS_COMPILER=$ROOT_DIR/lazy-prebuilt/aarch64-linaro-4.9/bin/aarch64-linux-gnu-
+CROSS_COMPILER=$(pwd)/lazy-prebuilt/aarch64-linaro-4.9/bin/aarch64-linux-gnu-
 
 DTBTOOL=$ROOT_DIR/lazy-prebuilt/bin/dtbTool
 DTS_DIR=$BUILDING_DIR/arch/arm64/boot/dts/samsung
@@ -71,7 +71,7 @@ FUNC_PACK()
 START_TIME=`date +%s`
 FUNC_CLEAN
 FUNC_COMPILE_KERNEL
-FUNC_BUILD_DTB
+#FUNC_BUILD_DTB
 FUNC_PACK
 END_TIME=`date +%s`
 

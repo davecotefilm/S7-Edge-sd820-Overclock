@@ -1,0 +1,1 @@
+lineage_kernel_hero2qltechn
