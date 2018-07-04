@@ -57,13 +57,17 @@ FUNC_BUILD_DTB()
 FUNC_PACK()
 {
 		FUNC_PRINT "Start Packing"
+		rm $(pwd)/ToxicKernel.zip
 		cp -r $ANYKERNEL_DIR/* $TEMP_DIR
 		cp $BUILDING_DIR/arch/arm64/boot/Image.gz $TEMP_DIR/zImage
 		mkdir $TEMP_DIR/modules
 		find . -type f -name "*.ko" | xargs cp -t $TEMP_DIR/modules
+		cd $(pwd)/out_dtb
+		cp dtb $TEMP_DIR/dtb
+		cd $ROOT_DIR
 		cd $TEMP_DIR
 		zip -r ToxicKernel.zip ./*
-		mv ToxicKernel.zip $OUT_DIR/ToxicKernel.zip
+		#mv ToxicKernel.zip $(pwd)/ToxicKernel.zip
 		cd $ROOT_DIR
 		FUNC_PRINT "Finish Packing"
 }

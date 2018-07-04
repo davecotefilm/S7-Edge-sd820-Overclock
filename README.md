@@ -1,7 +1,7 @@
 2265mHz big cores 1785mHz little cores, GPU 650mHz, 300mHz added to all CPU cores for lighter daily useage. 
 This Kernel is built for Android N 7.0
 
-Useage: just run sh BUILD.sh from the root folder, this will compile the kernel into /out_zImage/ and the dtb into /out_dtb/; copy the dtb and paste it into the archive ToxicKernel.zip, then you've got your flashable overclocked zip for the SM_g9350.
+Useage: just run sh BUILD.sh from the root folder, this will compile the flashable zip into the root folder as ToxicKernel.zip
 
 LINEAGE KERNEL IS BUILT SOLELY FOR THE DTB (NOT SURE WHY BUT SAMSUCK'S SOURCE DOESN'T COMPILE A CORRECT DTB, SO WE ARE USING THE ZIMAGE FROM SAMSUCKSOURCE, AND THE DTB FROM AWESOME LINEAGE :)
 

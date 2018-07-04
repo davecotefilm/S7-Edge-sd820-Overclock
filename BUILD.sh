@@ -1,15 +1,16 @@
 #!/bin/bash
 echo "===================================================================="
+echo " BUILDING DTB ..."
+echo "===================================================================="
+#sh build_dtb.sh
+sh build_dtb.sh
+echo "===================================================================="
 echo " BUILDING KERNEL ..."
 echo "===================================================================="
 sh build_kernel.sh
+ROOTDIR=$(pwd)
+cp $ROOTDIR/out_zImage/temp/ToxicKernel.zip $ROOTDIR
 echo "===================================================================="
-echo " BUILDING DTB ..."
+echo " BUILDING COMPLETE, ToxicKernel.zip should be in root folder now "
 echo "===================================================================="
-sh build_dtb.sh
-echo "===================================================================="
-echo " BUILDING COMPLETE, NOW COPY dtb FROM /out_dtb/,"
-echo "===================================================================="
-echo "===================================================================="
-echo " AND PASTE IT INTO THE ROOT OF ARCHIVE /out_zImage/ToxicKernel.zip,"
-echo "===================================================================="
+
