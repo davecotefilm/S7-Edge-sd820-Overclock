@@ -12,7 +12,6 @@
 
 /dts-v1/;
 
-#include "../qcom/msm8996.dtsi"
 #include "../qcom/msm8996-v3.dtsi"
 #include "../qcom/msm8996-pm8994-pm8004.dtsi"
 #include "../qcom/msm8996-mtp.dtsi"
@@ -42,4 +41,18 @@
 	};
 };
 
+/***************************************************/
+/* <<< CHN model specific overriding configuration */
 
+&pm8994_gpios {
+	/* Delete FM radio configuration. It's not used in CHN project */
+	/delete-node/ gpio@cf00;
+};
+
+&soc {
+	/* Delete FM radio configuration. It's not used in CHN project */
+	/delete-node/ i2c@64;
+};
+
+/* CHN model specific overriding configuration >>> */
+/***************************************************/

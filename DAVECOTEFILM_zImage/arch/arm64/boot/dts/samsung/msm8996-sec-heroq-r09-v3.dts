@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-#include "../qcom/msm8996.dtsi"
+
 #include "../qcom/msm8996-v3.dtsi"
 #include "../qcom/msm8996-pm8994-pm8004.dtsi"
 #include "../qcom/msm8996-mtp.dtsi"

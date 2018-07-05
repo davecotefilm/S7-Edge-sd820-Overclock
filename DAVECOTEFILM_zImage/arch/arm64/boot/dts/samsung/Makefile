@@ -27,9 +27,7 @@ dtb-$(CONFIG_SEC_HERO2QLTE_PROJECT) += msm8996-sec-hero2qlte-r00.dtb \
 			 msm8996-sec-hero2qlte-r10.dtb \
 			 msm8996-sec-hero2qlte-r11.dtb \
 			 msm8996-sec-hero2qlte-r13.dtb \
-			 msm8996-sec-hero2qlte-r15.dtb \
-			 msm8996-v3.dtb \
-			 msm8996.dtb
+			 msm8996-sec-hero2qlte-r15.dtb
 
 dtb-$(CONFIG_SEC_AEROQLTE_PROJECT) += msm8996-sec-aeroqlte-r00.dtb \
 			msm8996-sec-aeroqlte-r01.dtb \

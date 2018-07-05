@@ -90,9 +90,9 @@
 	rpm-regulator-smpa5 {
 		status = "okay";
 		pm8994_s5: regulator-s5 {
-			regulator-min-microvolt = <2150000>;
-			regulator-max-microvolt = <2150000>;
-			qcom,init-voltage = <2150000>;
+			regulator-min-microvolt = <2342400>;
+			regulator-max-microvolt = <2342400>;
+			qcom,init-voltage = <2342400>;
 			status = "okay";
 		};
 	};
@@ -269,9 +269,9 @@
 	rpm-regulator-ldoa18 {
 		status = "okay";
 		pm8994_l18: regulator-l18 {
-			regulator-min-microvolt = <2700000>;
-			regulator-max-microvolt = <2900000>;
-			qcom,init-voltage = <2700000>;
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+			qcom,init-voltage = <2850000>;
 			status = "okay";
 		};
 

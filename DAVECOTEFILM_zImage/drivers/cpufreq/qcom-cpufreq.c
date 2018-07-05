@@ -29,11 +29,10 @@
 #include <linux/of.h>
 #include <trace/events/power.h>
 
-// AP: Default startup frequencies
-#define CONFIG_CPU_FREQ_MIN_CLUSTER1	307200
-#define CONFIG_CPU_FREQ_MAX_CLUSTER1	1728000
-#define CONFIG_CPU_FREQ_MIN_CLUSTER2	307200
-#define CONFIG_CPU_FREQ_MAX_CLUSTER2	2265000
+#ifdef CONFIG_CPU_FREQ_LIMIT
+/* cpu frequency table for limit driver */
+void cpufreq_limit_set_table(int cpu, struct cpufreq_frequency_table * ftbl);
+#endif
 
 static DEFINE_MUTEX(l2bw_lock);
 
@@ -251,35 +250,7 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 			cpumask_set_cpu(cpu, policy->cpus);
 
 	if (cpufreq_frequency_table_cpuinfo(policy, table))
-	{
-		// AP: set default frequencies to prevent overclocking or underclocking during start
-		if (policy->cpu <= 1)
-		{
-		   policy->cpuinfo.min_freq = CONFIG_CPU_FREQ_MIN_CLUSTER1;
-		   policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_MAX_CLUSTER1;
-		}
-
-		if (policy->cpu >= 2)
-		{
-		   policy->cpuinfo.min_freq = CONFIG_CPU_FREQ_MIN_CLUSTER2;
-		   policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_MAX_CLUSTER2;
-		}
-
 		pr_err("cpufreq: failed to get policy min/max\n");
-	}
-
-	// AP: set default frequencies to prevent overclocking or underclocking during start
-	if (policy->cpu <= 1)
-	{
-       policy->min = CONFIG_CPU_FREQ_MIN_CLUSTER1;
-       policy->max = CONFIG_CPU_FREQ_MAX_CLUSTER1;
-	}
-
-	if (policy->cpu >= 2)
-	{
-       policy->min = CONFIG_CPU_FREQ_MIN_CLUSTER2;
-       policy->max = CONFIG_CPU_FREQ_MAX_CLUSTER2;
-	}
 
 	cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
 
@@ -510,6 +481,10 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 	ftbl[i].driver_data = i;
 	ftbl[i].frequency = CPUFREQ_TABLE_END;
 
+#ifdef CONFIG_CPU_FREQ_LIMIT
+	cpufreq_limit_set_table(cpu, ftbl);
+#endif
+
 	devm_kfree(dev, data);
 
 	return ftbl;
@@ -546,7 +521,7 @@ static void cpufreq_boot_limit_start(int period)
 		cpufreq_boot_limit.freq[period][0], cpufreq_boot_limit.freq[period][1],
 		cpufreq_boot_limit.timeout[period]);
 limit_end:			
-	/*cpufreq_boot_limit_update(period);*/
+	cpufreq_boot_limit_update(period);
 
 	return;
 

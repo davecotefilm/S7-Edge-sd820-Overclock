@@ -227,8 +227,6 @@ struct dentry_operations {
 #define DCACHE_OP_SELECT_INODE		0x02000000 /* Unioned entry: dcache op selects inode */
 #define DCACHE_WILL_INVALIDATE		0x80000000 /* will be invalidated */
 
-#define DCACHE_ENCRYPTED_WITH_KEY	0x04000000 /* dir is encrypted with a valid key */
-
 extern seqlock_t rename_lock;
 
 /*
@@ -466,13 +464,6 @@ static inline bool d_is_negative(const struct dentry *dentry)
 static inline bool d_is_positive(const struct dentry *dentry)
 {
 	return !d_is_negative(dentry);
-}
-
-static inline bool d_is_su(const struct dentry *dentry)
-{
-	return dentry &&
-	       dentry->d_name.len == 2 &&
-	       !memcmp(dentry->d_name.name, "su", 2);
 }
 
 extern int sysctl_vfs_cache_pressure;
