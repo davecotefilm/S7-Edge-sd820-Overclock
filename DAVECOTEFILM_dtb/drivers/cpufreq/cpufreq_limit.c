@@ -174,17 +174,17 @@ struct cpufreq_limit_hmp hmp_param = {
 	.little_cpu_end			= 1,
 	.big_cpu_start 			= 2,
 	.big_cpu_end			= 3,
-	.big_min_freq			= 307200,
-	.big_max_freq			= 2150400,
-	.little_min_freq		= 307200,
-	.little_max_freq		= 1593600,
-	.little_min_lock		= 960000 / 1, /* devide value is little_divider */
+	.big_min_freq			= 233000,
+	.big_max_freq			= 2265600,
+	.little_min_freq		= 233000,
+	.little_max_freq		= 1785600,
+	.little_min_lock		= 729600 / 1, /* devide value is little_divider */
 
 	.little_divider			= 1,
 	.hmp_boost_type			= 1,	/* 0: disable */
 	.hmp_boost_active		= 0,
 
-	.little_limit_max_freq		= 1190400,
+	.little_limit_max_freq		= 1036800,
 };
 
 void cpufreq_limit_corectl(int freq)
