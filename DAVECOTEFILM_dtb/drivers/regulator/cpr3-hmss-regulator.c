@@ -376,7 +376,20 @@ static const int msm8996_v3_hmss_fuse_ref_volt[MSM8996_HMSS_FUSE_CORNERS] = {
 	705000, /* Place holder entry for LowSVS */
 	705000,
 	865000,
-	1260000,
+	1140000,
+};
+
+/*
+ * Open loop voltage fuse reference voltages in microvolts for MSM8996 v3 with
+ * speed_bin == 1 and cpr_fusing_rev >= 5.
+ */
+static const int msm8996_v3_speed_bin1_rev5_hmss_fuse_ref_volt[
+						MSM8996_HMSS_FUSE_CORNERS] = {
+	605000,
+	705000, /* Place holder entry for LowSVS */
+	705000,
+	865000,
+	1040000,
 };
 
 /* Defines mapping from retention fuse values to voltages in microvolts */
