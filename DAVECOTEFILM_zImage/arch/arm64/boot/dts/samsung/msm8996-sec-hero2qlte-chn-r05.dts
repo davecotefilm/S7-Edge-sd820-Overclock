@@ -41,4 +41,18 @@
 	};
 };
 
+/***************************************************/
+/* <<< CHN model specific overriding configuration */
 
+&pm8994_gpios {
+	/* Delete FM radio configuration. It's not used in CHN project */
+	/delete-node/ gpio@cf00;
+};
+
+&soc {
+	/* Delete FM radio configuration. It's not used in CHN project */
+	/delete-node/ i2c@64;
+};
+
+/* CHN model specific overriding configuration >>> */
+/***************************************************/
