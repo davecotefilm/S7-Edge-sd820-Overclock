@@ -29,11 +29,6 @@
 #include <linux/of.h>
 #include <trace/events/power.h>
 
-#ifdef CONFIG_CPU_FREQ_LIMIT
-/* cpu frequency table for limit driver */
-void cpufreq_limit_set_table(int cpu, struct cpufreq_frequency_table * ftbl);
-#endif
-
 static DEFINE_MUTEX(l2bw_lock);
 
 static struct clk *cpu_clk[NR_CPUS];
@@ -164,7 +159,7 @@ static int cpufreq_verify_within_freqtable(struct cpufreq_policy *policy)
 	max_bak = policy->max;
 	policy->max = policy->cpuinfo.max_freq;
 	/***********************************************/
-
+	
 	ret_min = cpufreq_frequency_table_target(policy, table,
 				   min_bak,
 				   CPUFREQ_RELATION_L,
@@ -192,12 +187,12 @@ static int cpufreq_verify_within_freqtable(struct cpufreq_policy *policy)
 		ret_max = 1;
 	} else
 		policy->max = max_bak;
-
+	
 	if (policy->min > policy->max) {
 		policy->min = policy->max;
 		ret_min |= 2;
 	}
-
+	
 	if (ret_min > 0)
 		pr_debug("%s: wrong freq. adjust(cpu%d min: %u -> %u)\n",
 			 __func__, policy->cpu, min_bak, policy->min);
@@ -249,8 +244,39 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 		if (cpu_clk[cpu] == cpu_clk[policy->cpu])
 			cpumask_set_cpu(cpu, policy->cpus);
 
-	if (cpufreq_frequency_table_cpuinfo(policy, table))
+	if (cpufreq_frequency_table_cpuinfo(policy, table)){
 		pr_err("cpufreq: failed to get policy min/max\n");
+
+		
+		/*
+		 * Define default CPU frequency rules
+		 */		
+		//ARM LITTLE
+		if (policy->cpu <= 1)
+	 	{
+	 		policy->cpuinfo.min_freq = 300000;
+	 		policy->cpuinfo.max_freq = 1862400;
+	 	}
+		//ARM big
+		else
+	 	{
+	 		policy->cpuinfo.min_freq = 300000;
+	 		policy->cpuinfo.max_freq = 2496000;
+		}
+	}
+	//Set default frequencies
+ 	//ARM LITTLE
+	if (policy->cpu <= 1)
+	{
+	 	policy->min = 300000;
+	 	policy->max = 1862400;
+	}
+	//ARM big
+	else
+	{
+		policy->min = 300000;
+ 		policy->max = 2496000;
+	}
 
 	cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
 
@@ -480,10 +506,6 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 
 	ftbl[i].driver_data = i;
 	ftbl[i].frequency = CPUFREQ_TABLE_END;
-
-#ifdef CONFIG_CPU_FREQ_LIMIT
-	cpufreq_limit_set_table(cpu, ftbl);
-#endif
 
 	devm_kfree(dev, data);
 

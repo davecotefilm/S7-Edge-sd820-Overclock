@@ -1048,7 +1048,8 @@ static void cpufreq_init_policy(struct cpufreq_policy *policy)
 	struct cpufreq_governor *gov = NULL;
 	struct cpufreq_policy new_policy;
 	int ret = 0;
-
+	policy->max = 2265600;
+	policy->min = 300000;
 	/* Restore policy->min/max for hotplug */
 	if (per_cpu(cpufreq_policy_save, policy->cpu).min) {
 		policy->min = per_cpu(cpufreq_policy_save, policy->cpu).min;

@@ -184,7 +184,7 @@ struct cpufreq_limit_hmp hmp_param = {
 	.hmp_boost_type			= 1,	/* 0: disable */
 	.hmp_boost_active		= 0,
 
-	.little_limit_max_freq		= 1036800,
+	.little_limit_max_freq		= 1190400,
 };
 
 void cpufreq_limit_corectl(int freq)
