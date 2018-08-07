@@ -46,10 +46,10 @@
  */
 
 // NOTE: profile values in this version are mainly for Snapdragon devices!
-static char profiles_file_version[20] = "develop";
+static char profiles_file_version[20] = "70X1C";
 #define PROFILE_TABLE_END ~1
 #define END_OF_PROFILES "end"
-#define PROFILE_MAX_FREQ (2457600)	// ZZ: max possible freq in system table for freq adaption (possible OC frequencies inclusive)
+#define PROFILE_MAX_FREQ (2496000)	// ZZ: max possible freq in system table for freq adaption (possible OC frequencies inclusive)
 
 struct zzmoove_profile {
 	unsigned int profile_number;
@@ -362,8 +362,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores (0=disable, range from 1 to MAX_CORES)
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq (0=disable, range from 0 to freq->max in khz)
-		422400,		// music_min_freq (0=disable, range from 0 to freq->min in khz)
+		1248000,	// music_max_freq (0=disable, range from 0 to freq->max in khz)
+		300000,		// music_min_freq (0=disable, range from 0 to freq->min in khz)
 		2,		// music_min_cores (0=disable, range from 1 to MAX_CORES)
 #endif /* ENABLE_MUSIC_LIMITS */
 		75,		// smooth_up (range from 1 to 100)
@@ -537,8 +537,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		95,		// smooth_up
@@ -712,8 +712,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		95,		// smooth_up
@@ -887,8 +887,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		75,		// smooth_up
@@ -1062,8 +1062,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		80,		// smooth_up
@@ -1238,8 +1238,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		75,		// smooth_up
@@ -1413,8 +1413,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		68,		// smooth_up
@@ -1588,8 +1588,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		70,		// smooth_up
@@ -1763,8 +1763,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		60,		// smooth_up
@@ -1940,8 +1940,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		70,		// smooth_up
@@ -2115,8 +2115,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
 #ifdef ENABLE_MUSIC_LIMITS
-		1497600,	// music_max_freq
-		422400,		// music_min_freq
+		1248000,	// music_max_freq
+		300000,		// music_min_freq
 		2,		// music_min_cores
 #endif /* ENABLE_MUSIC_LIMITS */
 		68,		// smooth_up
