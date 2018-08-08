@@ -1,7 +1,7 @@
 /*
- *  QTI's FM Shared Memory Transport Driver
+ *  Qualcomm's FM Shared Memory Transport Driver
  *
- *  FM HCI_SMD ( FM HCI Shared Memory Driver) is QTI's Shared memory driver
+ *  FM HCI_SMD ( FM HCI Shared Memory Driver) is Qualcomm's Shared memory driver
  *  for the HCI protocol. This file is based on drivers/bluetooth/hci_vhci.c
  *
  *  Copyright (c) 2000-2001, 2011-2012, 2014-2015 The Linux Foundation.
@@ -44,12 +44,12 @@ static bool chan_opened;
 static int hcismd_fm_set_enable(const char *val, struct kernel_param *kp);
 module_param_call(fmsmd_set, hcismd_fm_set_enable, NULL, &fmsmd_set, 0644);
 static struct work_struct *reset_worker;
-static void radio_hci_smd_deregister(void);
-static void radio_hci_smd_exit(void);
+static int radio_hci_smd_deregister(void);
+static int radio_hci_smd_exit(void);
 
 static void radio_hci_smd_destruct(struct radio_hci_dev *hdev)
 {
-	radio_hci_unregister_dev();
+	radio_hci_smd_exit();
 }
 
 
@@ -60,8 +60,6 @@ static void radio_hci_smd_recv_event(unsigned long temp)
 	struct sk_buff *skb;
 	unsigned  char *buf;
 	struct radio_data *hsmd = &hs;
-	FMDBG("");
-
 	len = smd_read_avail(hsmd->fm_channel);
 
 	while (len) {
@@ -95,7 +93,6 @@ static void radio_hci_smd_recv_event(unsigned long temp)
 static int radio_hci_smd_send_frame(struct sk_buff *skb)
 {
 	int len = 0;
-	FMDBG("skb %pK", skb);
 
 	len = smd_write(hs.fm_channel, skb->data, skb->len);
 	if (len < skb->len) {
@@ -134,8 +131,7 @@ static void send_disable_event(struct work_struct *worker)
 
 static void radio_hci_smd_notify_cmd(void *data, unsigned int event)
 {
-	struct radio_hci_dev *hdev = (struct radio_hci_dev *)data;
-	FMDBG("data %p event %u", data, event);
+	struct radio_hci_dev *hdev = hs.hdev;
 
 	if (!hdev) {
 		FMDERR("Frame for unknown HCI device (hdev=NULL)");
@@ -166,7 +162,6 @@ static int radio_hci_smd_register_dev(struct radio_data *hsmd)
 {
 	struct radio_hci_dev *hdev;
 	int rc;
-	FMDBG("hsmd: %pK", hsmd);
 
 	if (hsmd == NULL)
 		return -ENODEV;
@@ -179,7 +174,6 @@ static int radio_hci_smd_register_dev(struct radio_data *hsmd)
 		(unsigned long) hsmd);
 	hdev->send  = radio_hci_smd_send_frame;
 	hdev->destruct = radio_hci_smd_destruct;
-	hdev->close_smd = radio_hci_smd_exit;
 
 	/* Open the SMD Channel and device and register the callback function */
 	rc = smd_named_open_on_edge("APPS_FM", SMD_APPS_WCNSS,
@@ -197,6 +191,7 @@ static int radio_hci_smd_register_dev(struct radio_data *hsmd)
 	if (radio_hci_register_dev(hdev) < 0) {
 		FMDERR("Can't register HCI device");
 		smd_close(hsmd->fm_channel);
+		hsmd->fm_channel = 0;
 		hsmd->hdev = NULL;
 		kfree(hdev);
 		return -ENODEV;
@@ -206,20 +201,30 @@ static int radio_hci_smd_register_dev(struct radio_data *hsmd)
 	return 0;
 }
 
-static void radio_hci_smd_deregister(void)
+static int radio_hci_smd_deregister(void)
 {
-	FMDBG("");
+	int ret = 0;
 
-	radio_hci_unregister_dev();
+	if ((ret = radio_hci_unregister_dev()) == -EBUSY) {
+		fmsmd_set = 1;
+		goto done;
+	}
 	kfree(hs.hdev);
 	hs.hdev = NULL;
 
 	smd_close(hs.fm_channel);
 	hs.fm_channel = 0;
 	fmsmd_set = 0;
+
+done:
+	return ret;
 }
 
-static int radio_hci_smd_init(void)
+#ifndef MODULE
+int radio_hci_smd_init(void)
+#else
+static int __init radio_hci_smd_init(void)
+#endif
 {
 	int ret;
 
@@ -232,29 +237,37 @@ static int radio_hci_smd_init(void)
 	ret = radio_hci_smd_register_dev(&hs);
 	if (ret < 0) {
 		FMDERR("Failed to register smd device");
+		fmsmd_set = 0;
 		chan_opened = false;
 		return ret;
 	}
+	fmsmd_set = 1;
 	chan_opened = true;
 	return ret;
 }
 
-static void radio_hci_smd_exit(void)
+static int radio_hci_smd_exit(void)
 {
+	int ret = 0;
+
 	if (!chan_opened) {
 		FMDBG("Channel already closed");
-		return;
+		return 0;
 	}
 
 	/* this should be called with fm_smd_enable lock held */
-	radio_hci_smd_deregister();
+	if ((ret = radio_hci_smd_deregister())) {
+		FMDERR("Failed to deregister smd %d", ret);
+		return ret;
+	}
 	chan_opened = false;
+
+	return ret;
 }
 
 static int hcismd_fm_set_enable(const char *val, struct kernel_param *kp)
 {
 	int ret = 0;
-
 	mutex_lock(&fm_smd_enable);
 	ret = param_set_int(val, kp);
 	if (ret)
@@ -262,17 +275,18 @@ static int hcismd_fm_set_enable(const char *val, struct kernel_param *kp)
 	switch (fmsmd_set) {
 
 	case 1:
-		radio_hci_smd_init();
+		ret = radio_hci_smd_init();
 		break;
 	case 0:
-		radio_hci_smd_exit();
+		ret = radio_hci_smd_exit();
 		break;
 	default:
-		ret = -EFAULT;
+		ret = -EINVAL;
 	}
 done:
 	mutex_unlock(&fm_smd_enable);
 	return ret;
 }
 MODULE_DESCRIPTION("FM SMD driver");
+MODULE_AUTHOR("Ankur Nandwani <ankurn@codeaurora.org>");
 MODULE_LICENSE("GPL v2");
