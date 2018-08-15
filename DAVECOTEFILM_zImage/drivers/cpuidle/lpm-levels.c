@@ -629,7 +629,7 @@ static int cluster_select(struct lpm_cluster *cluster, bool from_idle)
 		if (level->notify_rpm && msm_rpm_waiting_for_ack())
 			continue;
 
-		if (sleep_us <= pwr_params->max_residency) {
+		if (from_idle && sleep_us <= pwr_params->max_residency) {
 			best_level = i;
 			break;
 		}
