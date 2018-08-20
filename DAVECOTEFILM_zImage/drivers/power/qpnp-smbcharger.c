@@ -74,13 +74,13 @@ static int fb_notifier_callback(struct notifier_block *self,
 #define CHG_SOFT_UVP_MV               4300
 #define CHG_VOLTAGE_NORMAL            5000
 #define BATT_SOFT_OVP_MV              4500
-#define DWC3_HVDCP_CHG_MAX            1800
+#define DWC3_HVDCP_CHG_MAX            2200
 #define CHG_TIMEOUT_COUNT             10 * 10 * 60 /* 10hr */
  static int charger_type;
 static int fake_chgvol = 0;
 static int fake_temp = 300;
 static int fake_authentic = 0;
-static bool use_fake_temp = false;
+static bool use_fake_temp = true;
 static bool use_fake_chgvol = false;
 static bool use_fake_authentic = false;
  enum chg_battery_status_type {
@@ -556,7 +556,7 @@ module_param_named(
 	int, S_IRUSR | S_IWUSR
 );
 
-static int smbchg_default_hvdcp_icl_ma = 1800;
+static int smbchg_default_hvdcp_icl_ma = 2200;
 module_param_named(
 	default_hvdcp_icl_ma, smbchg_default_hvdcp_icl_ma,
 	int, S_IRUSR | S_IWUSR
@@ -568,7 +568,7 @@ module_param_named(
 	int, S_IRUSR | S_IWUSR
 );
 
-static int smbchg_default_dcp_icl_ma = 1800;
+static int smbchg_default_dcp_icl_ma = 2200;
 module_param_named(
 	default_dcp_icl_ma, smbchg_default_dcp_icl_ma,
 	int, S_IRUSR | S_IWUSR
@@ -1677,7 +1677,7 @@ static void use_pmi8996_tables(struct smbchg_chip *chip)
 	chip->tables.iterm_ma_len = ARRAY_SIZE(iterm_ma_table_8996);
 	chip->tables.fcc_comp_table = fcc_comp_table_8996;
 	chip->tables.fcc_comp_len = ARRAY_SIZE(fcc_comp_table_8996);
-	chip->tables.rchg_thr_mv = 150;
+	chip->tables.rchg_thr_mv = 200;
 	chip->tables.aicl_rerun_period_table = aicl_rerun_period;
 	chip->tables.aicl_rerun_period_len = ARRAY_SIZE(aicl_rerun_period);
 }
@@ -1698,7 +1698,7 @@ static int smbchg_charging_en(struct smbchg_chip *chip, bool en)
 #define CURRENT_150_MA		150
 #define CURRENT_500_MA		500
 #define CURRENT_900_MA		900
-#define CURRENT_1500_MA		1500
+#define CURRENT_1500_MA		2200
 #define SUSPEND_CURRENT_MA	2
 #define ICL_OVERRIDE_BIT	BIT(2)
 static int smbchg_usb_suspend(struct smbchg_chip *chip, bool suspend)
@@ -1817,7 +1817,7 @@ static DEVICE_ATTR(test_chg_vol, S_IRUGO | S_IWUSR,
 {
 	long val = simple_strtol(buf, NULL, 10);
  	if (val == 9898) {
-		use_fake_temp = false;
+		use_fake_temp = true;
 		fake_temp = 300;
 	} else {
 		use_fake_temp = true;
@@ -5377,7 +5377,7 @@ static bool is_usbin_uv_high(struct smbchg_chip *chip)
 }
 
 #define HVDCP_NOTIFY_MS		2500
-#define DEFAULT_WALL_CHG_MA	1800
+#define DEFAULT_WALL_CHG_MA	2200
 static void handle_usb_insertion(struct smbchg_chip *chip)
 {
 	enum power_supply_type usb_supply_type;
