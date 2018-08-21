@@ -911,10 +911,10 @@ qpnp_chg_is_ichg_loop_active(struct qpnp_chg_chip *chip)
 	return (buck_sts & ICHG_LOOP_IRQ) ? 1 : 0;
 }
 
-#define QPNP_CHG_I_MAX_MIN_100		100
-#define QPNP_CHG_I_MAX_MIN_150		150
-#define QPNP_CHG_I_MAX_MIN_MA		200
-#define QPNP_CHG_I_MAX_MAX_MA		2500
+#define QPNP_CHG_I_MAX_MIN_100		150
+#define QPNP_CHG_I_MAX_MIN_150		250
+#define QPNP_CHG_I_MAX_MIN_MA		300
+#define QPNP_CHG_I_MAX_MAX_MA		3000
 #define QPNP_CHG_I_MAXSTEP_MA		100
 static int
 qpnp_chg_idcmax_set(struct qpnp_chg_chip *chip, int mA)
@@ -1047,12 +1047,12 @@ qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 	return rc;
 }
 
-#define QPNP_CHG_VINMIN_MIN_MV		4000
-#define QPNP_CHG_VINMIN_HIGH_MIN_MV	5600
+#define QPNP_CHG_VINMIN_MIN_MV		4600
+#define QPNP_CHG_VINMIN_HIGH_MIN_MV	6600
 #define QPNP_CHG_VINMIN_HIGH_MIN_VAL	0x2B
-#define QPNP_CHG_VINMIN_MAX_MV		9600
-#define QPNP_CHG_VINMIN_STEP_MV		50
-#define QPNP_CHG_VINMIN_STEP_HIGH_MV	200
+#define QPNP_CHG_VINMIN_MAX_MV		10000
+#define QPNP_CHG_VINMIN_STEP_MV		100
+#define QPNP_CHG_VINMIN_STEP_HIGH_MV	300
 #define QPNP_CHG_VINMIN_MASK		0x3F
 #define QPNP_CHG_VINMIN_MIN_VAL	0x0C
 static int
@@ -1108,9 +1108,9 @@ qpnp_chg_vinmin_get(struct qpnp_chg_chip *chip)
 	return vin_min_mv;
 }
 
-#define QPNP_CHG_VBATWEAK_MIN_MV	2100
-#define QPNP_CHG_VBATWEAK_MAX_MV	3600
-#define QPNP_CHG_VBATWEAK_STEP_MV	100
+#define QPNP_CHG_VBATWEAK_MIN_MV	2600
+#define QPNP_CHG_VBATWEAK_MAX_MV	4600
+#define QPNP_CHG_VBATWEAK_STEP_MV	150
 static int
 qpnp_chg_vbatweak_set(struct qpnp_chg_chip *chip, int vbatweak_mv)
 {
@@ -1305,7 +1305,7 @@ qpnp_chg_toggle_chg_done_logic(struct qpnp_chg_chip *chip, int enable)
 }
 
 #define QPNP_CHG_VBATDET_MIN_MV	3240
-#define QPNP_CHG_VBATDET_MAX_MV	5780
+#define QPNP_CHG_VBATDET_MAX_MV	6200
 #define QPNP_CHG_VBATDET_STEP_MV	20
 static int
 qpnp_chg_vbatdet_set(struct qpnp_chg_chip *chip, int vbatdet_mv)
@@ -1516,7 +1516,7 @@ qpnp_chg_ocp_clear_work(struct work_struct *work)
 
 #define QPNP_CHG_VDDMAX_MIN		3400
 #define QPNP_CHG_V_MIN_MV		3240
-#define QPNP_CHG_V_MAX_MV		4500
+#define QPNP_CHG_V_MAX_MV		5400
 #define QPNP_CHG_V_STEP_MV		10
 #define QPNP_CHG_BUCK_TRIM1_STEP	10
 #define QPNP_CHG_BUCK_VDD_TRIM_MASK	0xF0
@@ -1710,7 +1710,7 @@ qpnp_chg_coarse_det_usb_irq_handler(int irq, void *_chip)
 	return IRQ_HANDLED;
 }
 
-#define USB_WALL_THRESHOLD_MA	500
+#define USB_WALL_THRESHOLD_MA	900
 #define ENUM_T_STOP_BIT		BIT(0)
 #define USB_5V_UV	5000000
 #define USB_9V_UV	9000000
@@ -2945,7 +2945,7 @@ qpnp_chg_bat_if_configure_btc(struct qpnp_chg_chip *chip)
 }
 
 #define QPNP_CHG_IBATSAFE_MIN_MA		100
-#define QPNP_CHG_IBATSAFE_MAX_MA		3250
+#define QPNP_CHG_IBATSAFE_MAX_MA		3800
 #define QPNP_CHG_I_STEP_MA		50
 #define QPNP_CHG_I_MIN_MA		100
 #define QPNP_CHG_I_MASK			0x3F
@@ -2967,7 +2967,7 @@ qpnp_chg_ibatsafe_set(struct qpnp_chg_chip *chip, int safe_current)
 }
 
 #define QPNP_CHG_ITERM_MIN_MA		100
-#define QPNP_CHG_ITERM_MAX_MA		250
+#define QPNP_CHG_ITERM_MAX_MA		300
 #define QPNP_CHG_ITERM_STEP_MA		50
 #define QPNP_CHG_ITERM_MASK			0x03
 static int
@@ -2989,7 +2989,7 @@ qpnp_chg_ibatterm_set(struct qpnp_chg_chip *chip, int term_current)
 }
 
 #define QPNP_CHG_IBATMAX_MIN	50
-#define QPNP_CHG_IBATMAX_MAX	3250
+#define QPNP_CHG_IBATMAX_MAX	3600
 static int
 qpnp_chg_ibatmax_set(struct qpnp_chg_chip *chip, int chg_current)
 {
@@ -3276,7 +3276,7 @@ qpnp_chg_input_current_settled(struct qpnp_chg_chip *chip)
 
 
 #define BOOST_MIN_UV	4200000
-#define BOOST_MAX_UV	5500000
+#define BOOST_MAX_UV	6000000
 #define BOOST_STEP_UV	50000
 #define BOOST_MIN	16
 #define N_BOOST_V	((BOOST_MAX_UV - BOOST_MIN_UV) / BOOST_STEP_UV + 1)
@@ -3904,7 +3904,7 @@ stop_eoc:
 	pm_relax(chip->dev);
 }
 
-#define BATT_HOT_MV			630
+#define BATT_HOT_MV			800
 static void
 qpnp_chg_btc_hot_irq_debounce_work(struct work_struct *work)
 {
@@ -4114,7 +4114,7 @@ qpnp_chg_adc_notification(enum qpnp_tm_state state, void *ctx)
 }
 
 #define MIN_COOL_TEMP	-300
-#define MAX_WARM_TEMP	1000
+#define MAX_WARM_TEMP	1400
 
 static int
 qpnp_chg_configure_jeita(struct qpnp_chg_chip *chip,
@@ -4176,7 +4176,7 @@ mutex_unlock:
 }
 
 #define POWER_STAGE_REDUCE_CHECK_PERIOD_NS		(20LL * NSEC_PER_SEC)
-#define POWER_STAGE_REDUCE_MAX_VBAT_UV			3900000
+#define POWER_STAGE_REDUCE_MAX_VBAT_UV			4800000
 #define POWER_STAGE_REDUCE_MIN_VCHG_UV			4800000
 #define POWER_STAGE_SEL_MASK				0x0F
 #define POWER_STAGE_REDUCED				0x01

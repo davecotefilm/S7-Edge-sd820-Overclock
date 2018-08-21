@@ -818,7 +818,7 @@ static int qpnp_chg_collapsible_chgr_config(struct qpnp_lbc_chip *chip,
 }
 
 #define QPNP_LBC_VBATWEAK_MIN_UV        3000000
-#define QPNP_LBC_VBATWEAK_MAX_UV        3581250
+#define QPNP_LBC_VBATWEAK_MAX_UV        4000000
 #define QPNP_LBC_VBATWEAK_STEP_UV       18750
 static int qpnp_lbc_vbatweak_set(struct qpnp_lbc_chip *chip, int voltage)
 {
@@ -843,7 +843,7 @@ static int qpnp_lbc_vbatweak_set(struct qpnp_lbc_chip *chip, int voltage)
 }
 
 #define QPNP_LBC_VBAT_MIN_MV		4000
-#define QPNP_LBC_VBAT_MAX_MV		4775
+#define QPNP_LBC_VBAT_MAX_MV		5000
 #define QPNP_LBC_VBAT_STEP_MV		25
 static int qpnp_lbc_vddsafe_set(struct qpnp_lbc_chip *chip, int voltage)
 {
@@ -970,7 +970,7 @@ static void qpnp_lbc_adjust_vddmax(struct qpnp_lbc_chip *chip, int vbat_uv)
 }
 
 #define QPNP_LBC_VINMIN_MIN_MV		4200
-#define QPNP_LBC_VINMIN_MAX_MV		5037
+#define QPNP_LBC_VINMIN_MAX_MV		5400
 #define QPNP_LBC_VINMIN_STEP_MV		27
 static int qpnp_lbc_vinmin_set(struct qpnp_lbc_chip *chip, int voltage)
 {
@@ -994,7 +994,7 @@ static int qpnp_lbc_vinmin_set(struct qpnp_lbc_chip *chip, int voltage)
 }
 
 #define QPNP_LBC_IBATSAFE_MIN_MA	90
-#define QPNP_LBC_IBATSAFE_MAX_MA	1440
+#define QPNP_LBC_IBATSAFE_MAX_MA	1800
 #define QPNP_LBC_I_STEP_MA		90
 static int qpnp_lbc_ibatsafe_set(struct qpnp_lbc_chip *chip, int safe_current)
 {
