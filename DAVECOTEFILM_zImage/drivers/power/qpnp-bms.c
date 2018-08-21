@@ -92,7 +92,7 @@
 #define DELTA_FCC_PERCENT                       5
 #define VALID_FCC_CHGCYL_RANGE                  50
 #define CHGCYL_RESOLUTION			20
-#define FCC_DEFAULT_TEMP			420
+#define FCC_DEFAULT_TEMP			250
 
 #define QPNP_BMS_DEV_NAME "qcom,qpnp-bms"
 
@@ -1077,7 +1077,7 @@ static int find_ocv_for_pc(struct qpnp_bms_chip *chip, int batt_temp, int pc)
 }
 
 #define OCV_RAW_UNINITIALIZED	0xFFFF
-#define MIN_OCV_UV		3000000
+#define MIN_OCV_UV		2000000
 static int read_soc_params_raw(struct qpnp_bms_chip *chip,
 				struct raw_soc_params *raw,
 				int batt_temp)

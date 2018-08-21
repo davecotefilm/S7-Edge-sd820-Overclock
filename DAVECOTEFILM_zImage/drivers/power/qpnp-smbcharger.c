@@ -450,7 +450,7 @@ module_param_named(
 	int, S_IRUSR | S_IWUSR
 );
 
-static int smbchg_default_hvdcp_icl_ma = 2400;
+static int smbchg_default_hvdcp_icl_ma = 1800;
 module_param_named(
 	default_hvdcp_icl_ma, smbchg_default_hvdcp_icl_ma,
 	int, S_IRUSR | S_IWUSR
@@ -462,7 +462,7 @@ module_param_named(
 	int, S_IRUSR | S_IWUSR
 );
 
-static int smbchg_default_dcp_icl_ma = 2400;
+static int smbchg_default_dcp_icl_ma = 1800;
 module_param_named(
 	default_dcp_icl_ma, smbchg_default_dcp_icl_ma,
 	int, S_IRUSR | S_IWUSR
@@ -1087,7 +1087,7 @@ static int get_prop_batt_capacity(struct smbchg_chip *chip)
 	return capacity;
 }
 
-#define DEFAULT_BATT_TEMP		440
+#define DEFAULT_BATT_TEMP		200
 static int get_prop_batt_temp(struct smbchg_chip *chip)
 {
 	int temp, rc;
@@ -1480,7 +1480,7 @@ static int smbchg_charging_en(struct smbchg_chip *chip, bool en)
 #define CURRENT_150_MA		150
 #define CURRENT_500_MA		500
 #define CURRENT_900_MA		900
-#define CURRENT_1500_MA		2400
+#define CURRENT_1500_MA		1500
 #define SUSPEND_CURRENT_MA	2
 #define ICL_OVERRIDE_BIT	BIT(2)
 static int smbchg_usb_suspend(struct smbchg_chip *chip, bool suspend)
@@ -1652,7 +1652,7 @@ static int smbchg_set_high_usb_chg_current(struct smbchg_chip *chip,
 			dev_err(chip->dev, "Couldn't set %dmA rc=%d\n",
 					CURRENT_150_MA, rc);
 		else
-			chip->usb_max_current_ma = 200;
+			chip->usb_max_current_ma = 150;
 		return rc;
 	}
 
@@ -1775,7 +1775,7 @@ static int smbchg_set_usb_current_max(struct smbchg_chip *chip,
 				pr_err("Couldn't set CMD_IL rc = %d\n", rc);
 				goto out;
 			}
-			chip->usb_max_current_ma = 200;
+			chip->usb_max_current_ma = 150;
 		}
 		if (current_ma == CURRENT_500_MA) {
 			rc = smbchg_sec_masked_write(chip,
@@ -1793,7 +1793,7 @@ static int smbchg_set_usb_current_max(struct smbchg_chip *chip,
 				pr_err("Couldn't set CMD_IL rc = %d\n", rc);
 				goto out;
 			}
-			chip->usb_max_current_ma = 800;
+			chip->usb_max_current_ma = 500;
 		}
 		if ((current_ma == CURRENT_500_MA) || (current_ma == CURRENT_900_MA)) {	// AP: Fast charge for USB
 			rc = smbchg_sec_masked_write(chip,
@@ -3082,7 +3082,7 @@ static int smbchg_float_voltage_comp_set(struct smbchg_chip *chip, int code)
 
 #define VFLOAT_CFG_REG			0xF4
 #define MIN_FLOAT_MV			3600
-#define MAX_FLOAT_MV			5000
+#define MAX_FLOAT_MV			4500
 #define VFLOAT_MASK			SMB_MASK(5, 0)
 
 #define MID_RANGE_FLOAT_MV_MIN		3600
@@ -7280,7 +7280,7 @@ static struct of_device_id smbchg_match_table[] = {
 };
 
 #define DC_MA_MIN 300
-#define DC_MA_MAX 2400
+#define DC_MA_MAX 2000
 #define OF_PROP_READ(chip, prop, dt_property, retval, optional)		\
 do {									\
 	if (retval)							\
@@ -7394,8 +7394,8 @@ err:
 	return rc;
 }
 
-#define DEFAULT_VLED_MAX_UV		4200000
-#define DEFAULT_FCC_MA			2400
+#define DEFAULT_VLED_MAX_UV		3500000
+#define DEFAULT_FCC_MA			2000
 static int smb_parse_dt(struct smbchg_chip *chip)
 {
 	int rc = 0, ocp_thresh = -EINVAL;
