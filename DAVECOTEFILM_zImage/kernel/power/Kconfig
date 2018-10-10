@@ -44,6 +44,11 @@ config FOTA_LIMIT
 	  Add sysfs to notify limit information to recovery module
 	  /sys/power/fota_limit
 
+config	TOXIC_WL_BLOCKER
+	bool "toxic generic wakelock blocker driver"
+	depends on PM
+	default N
+
 config HIBERNATE_CALLBACKS
 	bool
 

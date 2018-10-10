@@ -19,6 +19,13 @@
 
 #include "power.h"
 
+#ifdef CONFIG_TOXIC_WL_BLOCKER
+#include "toxic_wl_blocker.h"
+char list_wl_search[LENGTH_LIST_WL_SEARCH] = {0};
+bool wl_blocker_active = false;
+bool wl_blocker_debug = false;
+#endif
+
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -439,19 +446,57 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 	trace_wakeup_source_activate(ws->name, cec);
 }
 
+#ifdef CONFIG_TOXIC_WL_BLOCKER
+// AP: Function to check if a wakelock is on the wakelock blocker list
+static bool check_for_block(struct wakeup_source *ws)
+{
+	char wakelock_name[52];
+	int length;
+
+ 	// if debug mode on, print every wakelock requested
+	if (wl_blocker_debug)
+		printk("toxic WL blocker: %s requested\n", ws->name);
+ 	// if there is no list of wakelocks to be blocked, exit without futher checking
+	if (!wl_blocker_active)
+		return false;
+ 	// check if wakelock is in wake lock list to be blocked
+	if (ws)
+	{
+		// wake lock names handled have maximum length=50 and minimum=1
+		length = strlen(ws->name);
+		if ((length > 50) || (length < 1))
+			return false;
+ 		sprintf(wakelock_name, ";%s;", ws->name);
+ 		if(strstr(list_wl_search, wakelock_name) == NULL)
+			return false;
+	}
+ 	// wake lock is in list, print it if debug mode on
+	if (wl_blocker_debug)
+		printk("toxic WL blocker: %s blocked\n", ws->name);
+ 	// finally block it
+	return true;
+}
+#endif
+
 /**
  * wakeup_source_report_event - Report wakeup event using the given source.
  * @ws: Wakeup source to report the event for.
  */
 static void wakeup_source_report_event(struct wakeup_source *ws)
 {
-	ws->event_count++;
-	/* This is racy, but the counter is approximate anyway. */
-	if (events_check_enabled)
-		ws->wakeup_count++;
-
-	if (!ws->active)
-		wakeup_source_activate(ws);
+#ifdef CONFIG_TOXIC_WL_BLOCKER
+	if (!check_for_block(ws))	// AP: check if wakelock is on wakelock blocker list
+	{
+#endif
+		ws->event_count++;
+		/* This is racy, but the counter is approximate anyway. */
+		if (events_check_enabled)
+			ws->wakeup_count++;
+ 		if (!ws->active)
+			wakeup_source_activate(ws);
+#ifdef CONFIG_TOXIC_WL_BLOCKER
+	}
+#endif
 }
 
 /**
@@ -739,7 +784,10 @@ void pm_print_active_wakeup_sources(void)
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->active) {
 			pr_info("active wakeup source: %s\n", ws->name);
-			active = 1;
+#ifdef CONFIG_TOXIC_WL_BLOCKER
+			if (!check_for_block(ws))	// AP: check if wakelock is on wakelock blocker list
+#endif
+				active = 1;
 		} else if (!active &&
 			   (!last_activity_ws ||
 			    ktime_to_ns(ws->last_time) >
@@ -754,6 +802,13 @@ void pm_print_active_wakeup_sources(void)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(pm_print_active_wakeup_sources);
+
+#ifdef CONFIG_TOXIC_WL_BLOCKER
+void pm_print_active_wakeup_sources(void)
+{
+	print_active_wakeup_sources();
+}
+#endif
 
 /**
  * pm_wakeup_pending - Check if power transition in progress should be aborted.
