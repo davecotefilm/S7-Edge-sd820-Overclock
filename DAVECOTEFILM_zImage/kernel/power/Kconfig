@@ -47,7 +47,7 @@ config FOTA_LIMIT
 config	TOXIC_WL_BLOCKER
 	bool "toxic generic wakelock blocker driver"
 	depends on PM
-	default N
+	default n
 
 config HIBERNATE_CALLBACKS
 	bool

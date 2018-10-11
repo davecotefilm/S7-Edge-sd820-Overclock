@@ -803,13 +803,6 @@ void pm_print_active_wakeup_sources(void)
 }
 EXPORT_SYMBOL_GPL(pm_print_active_wakeup_sources);
 
-#ifdef CONFIG_TOXIC_WL_BLOCKER
-void pm_print_active_wakeup_sources(void)
-{
-	print_active_wakeup_sources();
-}
-#endif
-
 /**
  * pm_wakeup_pending - Check if power transition in progress should be aborted.
  *
