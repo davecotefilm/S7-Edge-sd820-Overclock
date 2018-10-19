@@ -755,9 +755,6 @@ static int msm_gfx_ldo_adjust_init_voltage(struct msm_gfx_ldo *ldo_vreg)
 
 	volt_adjust = devm_kcalloc(ldo_vreg->dev, size, sizeof(*volt_adjust),
 								GFP_KERNEL);
-	if (!volt_adjust)
-		return -ENOMEM;
-
 	rc = of_property_read_u32_array(of_node, prop_name, volt_adjust, size);
 	if (rc) {
 		pr_err("failed to read %s property rc=%d\n", prop_name, rc);
