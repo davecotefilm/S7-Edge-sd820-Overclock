@@ -96,23 +96,23 @@ static int add_path_node(struct msm_bus_inode_info *info, int next)
 	struct path_node *pnode;
 	int i;
 	if (ZERO_OR_NULL_PTR(info)) {
-		//MSM_BUS_ERR("Cannot find node info!: id :%d\n",
-		//		info->node_info->priv_id);
+		MSM_BUS_ERR("Cannot find node info!: id :%d\n",
+				info->node_info->priv_id);
 		return -ENXIO;
 	}
 
 	for (i = 0; i <= info->num_pnodes; i++) {
 		if (info->pnode[i].next == -2) {
-			//MSM_BUS_DBG("Reusing pnode for info: %d at index: %d\n",
-			//	info->node_info->priv_id, i);
+			MSM_BUS_DBG("Reusing pnode for info: %d at index: %d\n",
+				info->node_info->priv_id, i);
 			info->pnode[i].clk[DUAL_CTX] = 0;
 			info->pnode[i].clk[ACTIVE_CTX] = 0;
 			info->pnode[i].bw[DUAL_CTX] = 0;
 			info->pnode[i].bw[ACTIVE_CTX] = 0;
 			info->pnode[i].next = next;
-			//MSM_BUS_DBG("%d[%d] : (%d, %d)\n",
-			//	info->node_info->priv_id, i, GET_NODE(next),
-			//	GET_INDEX(next));
+			MSM_BUS_DBG("%d[%d] : (%d, %d)\n",
+				info->node_info->priv_id, i, GET_NODE(next),
+				GET_INDEX(next));
 			return i;
 		}
 	}
@@ -122,7 +122,7 @@ static int add_path_node(struct msm_bus_inode_info *info, int next)
 		((info->num_pnodes + 1) * sizeof(struct path_node))
 		, GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(pnode)) {
-		//MSM_BUS_ERR("Error creating path node!\n");
+		MSM_BUS_ERR("Error creating path node!\n");
 		info->num_pnodes--;
 		return -ENOMEM;
 	}
@@ -132,8 +132,8 @@ static int add_path_node(struct msm_bus_inode_info *info, int next)
 	info->pnode[info->num_pnodes].bw[DUAL_CTX] = 0;
 	info->pnode[info->num_pnodes].bw[ACTIVE_CTX] = 0;
 	info->pnode[info->num_pnodes].next = next;
-	//MSM_BUS_DBG("%d[%d] : (%d, %d)\n", info->node_info->priv_id,
-	//	info->num_pnodes, GET_NODE(next), GET_INDEX(next));
+	MSM_BUS_DBG("%d[%d] : (%d, %d)\n", info->node_info->priv_id,
+		info->num_pnodes, GET_NODE(next), GET_INDEX(next));
 	return info->num_pnodes;
 }
 
@@ -172,11 +172,11 @@ static int getpath(int src, int dest)
 	int fabid = GET_FABID(src);
 
 	/* Find the location of fabric for the src */
-	//MSM_BUS_DBG("%d --> %d\n", src, dest);
+	MSM_BUS_DBG("%d --> %d\n", src, dest);
 
 	fabdev = msm_bus_get_fabric_device(fabid);
 	if (!fabdev) {
-		//MSM_BUS_WARN("Fabric Not yet registered. Try again\n");
+		MSM_BUS_WARN("Fabric Not yet registered. Try again\n");
 		return -ENXIO;
 	}
 
@@ -184,32 +184,32 @@ static int getpath(int src, int dest)
 	if (src == dest) {
 		info = fabdev->algo->find_node(fabdev, src);
 		if (ZERO_OR_NULL_PTR(info)) {
-			//MSM_BUS_ERR("Node %d not found\n", dest);
+			MSM_BUS_ERR("Node %d not found\n", dest);
 			return -ENXIO;
 		}
 
 		for (i = 0; i <= info->num_pnodes; i++) {
 			if (info->pnode[i].next == -2) {
-				//MSM_BUS_DBG("src = dst  Reusing pnode for"
-				//" info: %d at index: %d\n",
+				MSM_BUS_DBG("src = dst  Reusing pnode for"
+				" info: %d at index: %d\n",
 				info->node_info->priv_id, i);
 				next_pnode_id = CREATE_PNODE_ID(src, i);
 				info->pnode[i].clk[DUAL_CTX] = 0;
 				info->pnode[i].bw[DUAL_CTX] = 0;
 				info->pnode[i].next = next_pnode_id;
-				//MSM_BUS_DBG("returning: %d, %d\n", GET_NODE
-				//(next_pnode_id), GET_INDEX(next_pnode_id));
+				MSM_BUS_DBG("returning: %d, %d\n", GET_NODE
+				(next_pnode_id), GET_INDEX(next_pnode_id));
 				return next_pnode_id;
 			}
 		}
 		next_pnode_id = CREATE_PNODE_ID(src, (info->num_pnodes + 1));
 		pnode_num = add_path_node(info, next_pnode_id);
 		if (pnode_num < 0) {
-			//MSM_BUS_ERR("Error adding path node\n");
+			MSM_BUS_ERR("Error adding path node\n");
 			return -ENXIO;
 		}
-		//MSM_BUS_DBG("returning: %d, %d\n", GET_NODE(next_pnode_id),
-		//	GET_INDEX(next_pnode_id));
+		MSM_BUS_DBG("returning: %d, %d\n", GET_NODE(next_pnode_id),
+			GET_INDEX(next_pnode_id));
 		return next_pnode_id;
 	} else if (_src == _dst) {
 		/*
@@ -218,7 +218,7 @@ static int getpath(int src, int dest)
 		 */
 		info = fabdev->algo->find_node(fabdev, dest);
 		if (ZERO_OR_NULL_PTR(info)) {
-			//MSM_BUS_ERR("Node %d not found\n", dest);
+			MSM_BUS_ERR("Node %d not found\n", dest);
 			return -ENXIO;
 		}
 
@@ -239,7 +239,7 @@ static int getpath(int src, int dest)
 					dest);
 				pnode_num = add_path_node(info, ret_pnode);
 				if (pnode_num < 0) {
-					//MSM_BUS_ERR("Error adding path node\n");
+					MSM_BUS_ERR("Error adding path node\n");
 					return -ENXIO;
 				}
 				next_pnode_id = CREATE_PNODE_ID(
@@ -256,13 +256,13 @@ static int getpath(int src, int dest)
 					msm_bus_get_fabric_device(fabnodeinfo->
 						info->node_info->priv_id);
 				if (!gwfab) {
-					//MSM_BUS_ERR("Err: No gateway found\n");
+					MSM_BUS_ERR("Err: No gateway found\n");
 					return -ENXIO;
 				}
 
 				if (!gwfab->visited) {
-					//MSM_BUS_DBG("VISITED ID: %d\n",
-					//	gwfab->id);
+					MSM_BUS_DBG("VISITED ID: %d\n",
+						gwfab->id);
 					gwfab->visited = true;
 					info = fabnodeinfo->info;
 					ret_pnode = getpath(info->
@@ -270,8 +270,8 @@ static int getpath(int src, int dest)
 					pnode_num = add_path_node(info,
 						ret_pnode);
 					if (pnode_num < 0) {
-						//MSM_BUS_ERR("Malloc failure in"
-						//" adding path node\n");
+						MSM_BUS_ERR("Malloc failure in"
+						" adding path node\n");
 						return -ENXIO;
 					}
 					next_pnode_id = CREATE_PNODE_ID(
@@ -285,21 +285,21 @@ static int getpath(int src, int dest)
 	}
 
 	if (!IS_NODE(src)) {
-		//MSM_BUS_DBG("Returning next_pnode_id:%d[%d]\n", GET_NODE(
-		//	next_pnode_id), GET_INDEX(next_pnode_id));
+		MSM_BUS_DBG("Returning next_pnode_id:%d[%d]\n", GET_NODE(
+			next_pnode_id), GET_INDEX(next_pnode_id));
 		return next_pnode_id;
 	}
 	info = fabdev->algo->find_node(fabdev, src);
 	if (!info) {
-		//MSM_BUS_ERR("Node info not found.\n");
+		MSM_BUS_ERR("Node info not found.\n");
 		return -ENXIO;
 	}
 
 	pnode_num = add_path_node(info, next_pnode_id);
-	//MSM_BUS_DBG(" Last: %d[%d] = (%d, %d)\n",
-	//	src, info->num_pnodes, GET_NODE(next_pnode_id),
-	//	GET_INDEX(next_pnode_id));
-	//MSM_BUS_DBG("returning: %d, %d\n", src, pnode_num);
+	MSM_BUS_DBG(" Last: %d[%d] = (%d, %d)\n",
+		src, info->num_pnodes, GET_NODE(next_pnode_id),
+		GET_INDEX(next_pnode_id));
+	MSM_BUS_DBG("returning: %d, %d\n", src, pnode_num);
 	return CREATE_PNODE_ID(src, pnode_num);
 }
 
@@ -313,8 +313,8 @@ static uint64_t get_node_maxib(struct msm_bus_inode_info *info)
 			maxib = max(info->pnode[i].clk[ctx], maxib);
 	}
 
-	//MSM_BUS_DBG("%s: Node %d numpnodes %d maxib %llu", __func__,
-	//	info->num_pnodes, info->node_info->id, maxib);
+	MSM_BUS_DBG("%s: Node %d numpnodes %d maxib %llu", __func__,
+		info->num_pnodes, info->node_info->id, maxib);
 	return maxib;
 }
 
@@ -327,8 +327,8 @@ static uint64_t get_node_sumab(struct msm_bus_inode_info *info)
 	for (i = 0; i <= info->num_pnodes; i++)
 		maxab += info->pnode[i].bw[DUAL_CTX];
 
-	//MSM_BUS_DBG("%s: Node %d numpnodes %d maxib %llu", __func__,
-	//	info->num_pnodes, info->node_info->id, maxab);
+	MSM_BUS_DBG("%s: Node %d numpnodes %d maxib %llu", __func__,
+		info->num_pnodes, info->node_info->id, maxab);
 	return maxab;
 }
 
@@ -346,13 +346,13 @@ static uint64_t get_vfe_bw(void)
 	info = fabdev->algo->find_node(fabdev, iid);
 
 	if (!info) {
-		//MSM_BUS_ERR("%s: Can't find node %d", __func__,
-		//				vfe_id);
+		MSM_BUS_ERR("%s: Can't find node %d", __func__,
+						vfe_id);
 		goto exit_get_vfe_bw;
 	}
 
 	vfe_bw = get_node_sumab(info);
-	//MSM_BUS_DBG("vfe_ab %llu", vfe_bw);
+	MSM_BUS_DBG("vfe_ab %llu", vfe_bw);
 
 exit_get_vfe_bw:
 	return vfe_bw;
@@ -376,25 +376,25 @@ static uint64_t get_mdp_bw(void)
 		info = fabdev->algo->find_node(fabdev, iid);
 
 		if (!info) {
-			//MSM_BUS_ERR("%s: Can't find node %d", __func__,
-			//					ids[i]);
+			MSM_BUS_ERR("%s: Can't find node %d", __func__,
+								ids[i]);
 			continue;
 		}
 
 		mdp_ab += get_node_sumab(info);
-		//MSM_BUS_DBG("mdp_ab %llu", mdp_ab);
+		MSM_BUS_DBG("mdp_ab %llu", mdp_ab);
 		ff = info->node_info->ff;
 	}
 
 	if (ff) {
 		mdp_ab = msm_bus_div64(2 * ff, 100 * mdp_ab);
 	} else {
-		//MSM_BUS_ERR("MDP FF is 0");
+		MSM_BUS_ERR("MDP FF is 0");
 		mdp_ab = 0;
 	}
 
 
-	//MSM_BUS_DBG("MDP BW %llu\n", mdp_ab);
+	MSM_BUS_DBG("MDP BW %llu\n", mdp_ab);
 	return mdp_ab;
 }
 
@@ -427,8 +427,8 @@ static uint64_t get_avail_bw(struct msm_bus_fabric_device *fabdev)
 	}
 
 	if (!fabdev->eff_fact || !fabdev->nr_lim_thresh) {
-		//MSM_BUS_ERR("Error: Eff-fact %d; nr_thresh %llu",
-		//		fabdev->eff_fact, fabdev->nr_lim_thresh);
+		MSM_BUS_ERR("Error: Eff-fact %d; nr_thresh %llu",
+				fabdev->eff_fact, fabdev->nr_lim_thresh);
 		return 0;
 	}
 
@@ -438,13 +438,13 @@ static uint64_t get_avail_bw(struct msm_bus_fabric_device *fabdev)
 	if (avail_bw >= fabdev->nr_lim_thresh)
 		return 0;
 
-	//MSM_BUS_DBG("%s: Total_avail_bw %llu, rt_bw %llu\n",
-	//	__func__, avail_bw, rt_bw);
+	MSM_BUS_DBG("%s: Total_avail_bw %llu, rt_bw %llu\n",
+		__func__, avail_bw, rt_bw);
 	trace_bus_avail_bw(avail_bw, rt_bw);
 
 	if (avail_bw < rt_bw) {
-		//MSM_BUS_ERR("\n%s: ERROR avail BW %llu < MDP %llu",
-		//	__func__, avail_bw, rt_bw);
+		MSM_BUS_ERR("\n%s: ERROR avail BW %llu < MDP %llu",
+			__func__, avail_bw, rt_bw);
 		avail_bw = 0;
 		goto exit_get_avail_bw;
 	}
@@ -474,7 +474,7 @@ static int msm_bus_commit_limiter(struct device *dev, void *data)
 	int ret = 0;
 	struct msm_bus_fabric_device *fabdev = to_msm_bus_fabric_device(dev);
 
-	//MSM_BUS_DBG("fabid: %d\n", fabdev->id);
+	MSM_BUS_DBG("fabid: %d\n", fabdev->id);
 	program_nr_limits(fabdev);
 	return ret;
 }
@@ -492,12 +492,12 @@ static void compute_nr_limits(struct msm_bus_fabric_device *fabdev, int pnode)
 			(void **)&info, fabric->fabdev.id, fabdev->num_nr_lim,
 			MASTER_NODE);
 
-	//MSM_BUS_DBG("%s: Found %d NR LIM nodes", __func__, num_nr_lim);
+	MSM_BUS_DBG("%s: Found %d NR LIM nodes", __func__, num_nr_lim);
 	for (i = 0; i < num_nr_lim; i++)
 		total_ib += get_node_maxib(info[i]);
 
 	avail_bw = get_avail_bw(fabdev);
-	//MSM_BUS_DBG("\n %s: Avail BW %llu", __func__, avail_bw);
+	MSM_BUS_DBG("\n %s: Avail BW %llu", __func__, avail_bw);
 
 	for (i = 0; i < num_nr_lim; i++) {
 		uint32_t node_pct = 0;
@@ -530,22 +530,22 @@ static void compute_nr_limits(struct msm_bus_fabric_device *fabdev, int pnode)
 		 */
 		if (info[i]->node_info->floor_bw && node_max_ib && avail_bw &&
 			(new_lim_bw <= info[i]->node_info->floor_bw)) {
-			//MSM_BUS_ERR("\nNode %d:Limiting BW:%llu < floor:%llu",
-			//	info[i]->node_info->id,	new_lim_bw,
-			//			info[i]->node_info->floor_bw);
+			MSM_BUS_ERR("\nNode %d:Limiting BW:%llu < floor:%llu",
+				info[i]->node_info->id,	new_lim_bw,
+						info[i]->node_info->floor_bw);
 			new_lim_bw = info[i]->node_info->floor_bw;
 		}
 
-		//if (new_lim_bw != info[i]->cur_lim_bw) {
-		//	info[i]->cur_lim_bw = new_lim_bw;
-		//	MSM_BUS_DBG("NodeId %d: Requested IB %llu",
-		//			info[i]->node_info->id, node_max_ib);
-		//	MSM_BUS_DBG("Limited to %llu(%d pct of Avail %llu )\n",
-		//			new_lim_bw, node_pct, avail_bw);
-		//} else {
-		//	MSM_BUS_DBG("NodeId %d: No change Limited to %llu\n",
-		//		info[i]->node_info->id, info[i]->cur_lim_bw);
-		//}
+		if (new_lim_bw != info[i]->cur_lim_bw) {
+			info[i]->cur_lim_bw = new_lim_bw;
+			MSM_BUS_DBG("NodeId %d: Requested IB %llu",
+					info[i]->node_info->id, node_max_ib);
+			MSM_BUS_DBG("Limited to %llu(%d pct of Avail %llu )\n",
+					new_lim_bw, node_pct, avail_bw);
+		} else {
+			MSM_BUS_DBG("NodeId %d: No change Limited to %llu\n",
+				info[i]->node_info->id, info[i]->cur_lim_bw);
+		}
 	}
 }
 
@@ -556,19 +556,19 @@ static void setup_nr_limits(int curr, int pnode)
 	struct msm_bus_inode_info *info;
 
 	if (!fabdev) {
-		//MSM_BUS_WARN("Fabric Not yet registered. Try again\n");
+		MSM_BUS_WARN("Fabric Not yet registered. Try again\n");
 		goto exit_setup_nr_limits;
 	}
 
 	/* This logic is currently applicable to BIMC masters only */
 	if (fabdev->id != MSM_BUS_FAB_DEFAULT) {
-		//MSM_BUS_ERR("Static limiting of NR masters only for BIMC\n");
+		MSM_BUS_ERR("Static limiting of NR masters only for BIMC\n");
 		goto exit_setup_nr_limits;
 	}
 
 	info = fabdev->algo->find_node(fabdev, curr);
 	if (!info) {
-		//MSM_BUS_ERR("Cannot find node info!\n");
+		MSM_BUS_ERR("Cannot find node info!\n");
 		goto exit_setup_nr_limits;
 	}
 
@@ -585,8 +585,8 @@ static bool is_nr_lim(int id)
 	bool ret = false;
 
 	if (!fabdev) {
-		//MSM_BUS_ERR("Bus device for bus ID: %d not found!\n",
-		//	GET_FABID(id));
+		MSM_BUS_ERR("Bus device for bus ID: %d not found!\n",
+			GET_FABID(id));
 		goto exit_is_nr_lim;
 	}
 
@@ -631,19 +631,19 @@ static int update_path(int curr, int pnode, uint64_t req_clk, uint64_t req_bw,
 		(GET_FABID(curr));
 
 	if (!fabdev) {
-		//MSM_BUS_ERR("Bus device for bus ID: %d not found!\n",
-		//	GET_FABID(curr));
+		MSM_BUS_ERR("Bus device for bus ID: %d not found!\n",
+			GET_FABID(curr));
 		return -ENXIO;
 	}
 
-	//MSM_BUS_DBG("args: %d %d %d %llu %llu %llu %llu %u\n",
-	//	curr, GET_NODE(pnode), GET_INDEX(pnode), req_clk, req_bw,
-	//	curr_clk, curr_bw, ctx);
+	MSM_BUS_DBG("args: %d %d %d %llu %llu %llu %llu %u\n",
+		curr, GET_NODE(pnode), GET_INDEX(pnode), req_clk, req_bw,
+		curr_clk, curr_bw, ctx);
 	index = GET_INDEX(pnode);
-	//MSM_BUS_DBG("Client passed index :%d\n", index);
+	MSM_BUS_DBG("Client passed index :%d\n", index);
 	info = fabdev->algo->find_node(fabdev, curr);
 	if (!info) {
-		//MSM_BUS_ERR("Cannot find node info!\n");
+		MSM_BUS_ERR("Cannot find node info!\n");
 		return -ENXIO;
 	}
 	src_info = info;
@@ -683,17 +683,17 @@ static int update_path(int curr, int pnode, uint64_t req_clk, uint64_t req_bw,
 		struct msm_bus_inode_info *hop;
 		fabdev = msm_bus_get_fabric_device(GET_FABID(curr));
 		if (!fabdev) {
-			//MSM_BUS_ERR("Fabric not found\n");
+			MSM_BUS_ERR("Fabric not found\n");
 			return -ENXIO;
 		}
-		//MSM_BUS_DBG("id: %d\n", info->node_info->priv_id);
+		MSM_BUS_DBG("id: %d\n", info->node_info->priv_id);
 
 		/* find next node and index */
 		next_pnode = info->pnode[index].next;
 		curr = GET_NODE(next_pnode);
 		index = GET_INDEX(next_pnode);
-		//MSM_BUS_DBG("id:%d, next: %d\n", info->
-		//    node_info->priv_id, curr);
+		MSM_BUS_DBG("id:%d, next: %d\n", info->
+		    node_info->priv_id, curr);
 
 		/* Get hop */
 		/* check if we are here as gateway, or does the hop belong to
@@ -703,7 +703,7 @@ static int update_path(int curr, int pnode, uint64_t req_clk, uint64_t req_bw,
 		else
 			hop = fabdev->algo->find_gw_node(fabdev, curr);
 		if (!hop) {
-			//MSM_BUS_ERR("Null Info found for hop\n");
+			MSM_BUS_ERR("Null Info found for hop\n");
 			return -ENXIO;
 		}
 
@@ -716,15 +716,15 @@ static int update_path(int curr, int pnode, uint64_t req_clk, uint64_t req_bw,
 			cl_active_flag];
 
 		if (!hop->node_info->buswidth) {
-			//MSM_BUS_WARN("No bus width found. Using default\n");
+			MSM_BUS_WARN("No bus width found. Using default\n");
 			hop->node_info->buswidth = 8;
 		}
 		*hop->pnode[index].sel_clk = BW_TO_CLK_FREQ_HZ(hop->node_info->
 			buswidth, req_clk);
 		*hop->pnode[index].sel_bw += add_bw;
-		//MSM_BUS_DBG("fabric: %d slave: %d, slave-width: %d info: %d\n",
-		//	fabdev->id, hop->node_info->priv_id, hop->node_info->
-		//	buswidth, info->node_info->priv_id);
+		MSM_BUS_DBG("fabric: %d slave: %d, slave-width: %d info: %d\n",
+			fabdev->id, hop->node_info->priv_id, hop->node_info->
+			buswidth, info->node_info->priv_id);
 		/* Update Bandwidth */
 		fabdev->algo->update_bw(fabdev, hop, info, add_bw,
 			master_tiers, ctx);
@@ -740,30 +740,30 @@ static int update_path(int curr, int pnode, uint64_t req_clk, uint64_t req_bw,
 		if (hop->node_info->num_sports > 1)
 			bwsum_hz = msm_bus_div64(hop->node_info->num_sports,
 				bwsum_hz);
-		//MSM_BUS_DBG("AXI: Hop: %d, ports: %d, bwsum_hz: %llu\n",
-		//		hop->node_info->id, hop->node_info->num_sports,
-		//		bwsum_hz);
-		//MSM_BUS_DBG("up-clk: curr_hz: %llu, req_hz: %llu, bw_hz %llu\n",
-		//	curr_clk, req_clk, bwsum_hz);
+		MSM_BUS_DBG("AXI: Hop: %d, ports: %d, bwsum_hz: %llu\n",
+				hop->node_info->id, hop->node_info->num_sports,
+				bwsum_hz);
+		MSM_BUS_DBG("up-clk: curr_hz: %llu, req_hz: %llu, bw_hz %llu\n",
+			curr_clk, req_clk, bwsum_hz);
 		ret = fabdev->algo->update_clks(fabdev, hop, index,
 			curr_clk_hz, req_clk_hz, bwsum_hz, SEL_FAB_CLK,
 			ctx, cl_active_flag);
-		//if (ret)
-		//	MSM_BUS_WARN("Failed to update clk\n");
+		if (ret)
+			MSM_BUS_WARN("Failed to update clk\n");
 		info = hop;
 	} while (GET_NODE(info->pnode[index].next) != info->node_info->priv_id);
 
 	/* Update BW, clk after exiting the loop for the last one */
 	if (!info) {
-		//MSM_BUS_ERR("Cannot find node info!\n");
+		MSM_BUS_ERR("Cannot find node info!\n");
 		return -ENXIO;
 	}
 
 	/* Update slave clocks */
 	ret = fabdev->algo->update_clks(fabdev, info, index, curr_clk_hz,
 	    req_clk_hz, bwsum_hz, SEL_SLAVE_CLK, ctx, cl_active_flag);
-	//if (ret)
-	//	MSM_BUS_ERR("Failed to update clk\n");
+	if (ret)
+		MSM_BUS_ERR("Failed to update clk\n");
 
 	if ((ctx == cl_active_flag) &&
 		((src_info->node_info->nr_lim || src_info->node_info->rt_mas)))
@@ -787,7 +787,7 @@ static int msm_bus_commit_fn(struct device *dev, void *data)
 {
 	int ret = 0;
 	struct msm_bus_fabric_device *fabdev = to_msm_bus_fabric_device(dev);
-	//MSM_BUS_DBG("Committing: fabid: %d\n", fabdev->id);
+	MSM_BUS_DBG("Committing: fabid: %d\n", fabdev->id);
 	ret = fabdev->algo->commit(fabdev);
 	return ret;
 }
@@ -801,26 +801,26 @@ static uint32_t register_client_legacy(struct msm_bus_scale_pdata *pdata)
 
 	deffab = msm_bus_get_fabric_device(MSM_BUS_FAB_DEFAULT);
 	if (!deffab) {
-		//MSM_BUS_ERR("Error finding default fabric\n");
+		MSM_BUS_ERR("Error finding default fabric\n");
 		return 0;
 	}
 
 	nfab = msm_bus_get_num_fab();
 	if (nfab < deffab->board_algo->board_nfab) {
-		//MSM_BUS_ERR("Can't register client!\n"
-		//		"Num of fabrics up: %d\n",
-		//		nfab);
+		MSM_BUS_ERR("Can't register client!\n"
+				"Num of fabrics up: %d\n",
+				nfab);
 		return 0;
 	}
 
 	if ((!pdata) || (pdata->usecase->num_paths == 0) || IS_ERR(pdata)) {
-		//MSM_BUS_ERR("Cannot register client with null data\n");
+		MSM_BUS_ERR("Cannot register client with null data\n");
 		return 0;
 	}
 
 	client = kzalloc(sizeof(struct msm_bus_client), GFP_KERNEL);
 	if (!client) {
-		//MSM_BUS_ERR("Error allocating client\n");
+		MSM_BUS_ERR("Error allocating client\n");
 		return 0;
 	}
 
@@ -833,40 +833,40 @@ static uint32_t register_client_legacy(struct msm_bus_scale_pdata *pdata)
 		pnode = krealloc(client->src_pnode, ((i + 1) * sizeof(int)),
 			GFP_KERNEL);
 		if (ZERO_OR_NULL_PTR(pnode)) {
-			//MSM_BUS_ERR("Invalid Pnode ptr!\n");
+			MSM_BUS_ERR("Invalid Pnode ptr!\n");
 			continue;
 		} else
 			client->src_pnode = pnode;
 
 		if (!IS_MASTER_VALID(pdata->usecase->vectors[i].src)) {
-			//MSM_BUS_ERR("Invalid Master ID %d in request!\n",
-			//	pdata->usecase->vectors[i].src);
+			MSM_BUS_ERR("Invalid Master ID %d in request!\n",
+				pdata->usecase->vectors[i].src);
 			goto err;
 		}
 
 		if (!IS_SLAVE_VALID(pdata->usecase->vectors[i].dst)) {
-			//MSM_BUS_ERR("Invalid Slave ID %d in request!\n",
-			//	pdata->usecase->vectors[i].dst);
+			MSM_BUS_ERR("Invalid Slave ID %d in request!\n",
+				pdata->usecase->vectors[i].dst);
 			goto err;
 		}
 
 		src = msm_bus_board_get_iid(pdata->usecase->vectors[i].src);
 		if (src == -ENXIO) {
-			//MSM_BUS_ERR("Master %d not supported. Client cannot be"
-			//	" registered\n",
-			//	pdata->usecase->vectors[i].src);
+			MSM_BUS_ERR("Master %d not supported. Client cannot be"
+				" registered\n",
+				pdata->usecase->vectors[i].src);
 			goto err;
 		}
 		dest = msm_bus_board_get_iid(pdata->usecase->vectors[i].dst);
 		if (dest == -ENXIO) {
-			//MSM_BUS_ERR("Slave %d not supported. Client cannot be"
-			//	" registered\n",
-			//	pdata->usecase->vectors[i].dst);
+			MSM_BUS_ERR("Slave %d not supported. Client cannot be"
+				" registered\n",
+				pdata->usecase->vectors[i].dst);
 			goto err;
 		}
 		srcfab = msm_bus_get_fabric_device(GET_FABID(src));
 		if (!srcfab) {
-			//MSM_BUS_ERR("Fabric not found\n");
+			MSM_BUS_ERR("Fabric not found\n");
 			goto err;
 		}
 
@@ -874,15 +874,15 @@ static uint32_t register_client_legacy(struct msm_bus_scale_pdata *pdata)
 		pnode[i] = getpath(src, dest);
 		bus_for_each_dev(&msm_bus_type, NULL, NULL, clearvisitedflag);
 		if (pnode[i] == -ENXIO) {
-			//MSM_BUS_ERR("Cannot register client now! Try again!\n");
+			MSM_BUS_ERR("Cannot register client now! Try again!\n");
 			goto err;
 		}
 	}
 	msm_bus_dbg_client_data(client->pdata, MSM_BUS_DBG_REGISTER,
 		(uint32_t)client);
 	mutex_unlock(&msm_bus_lock);
-	//MSM_BUS_DBG("ret: %u num_paths: %d\n", (uint32_t)client,
-	//	pdata->usecase->num_paths);
+	MSM_BUS_DBG("ret: %u num_paths: %d\n", (uint32_t)client,
+		pdata->usecase->num_paths);
 	return (uint32_t)(client);
 err:
 	kfree(client->src_pnode);
@@ -899,8 +899,8 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 	uint64_t req_clk = 0, req_bw = 0, curr_clk = 0, curr_bw = 0;
 	struct msm_bus_client *client = (struct msm_bus_client *)cl;
 	if (IS_ERR_OR_NULL(client)) {
-		//MSM_BUS_ERR("msm_bus_scale_client update req error %d\n",
-		//		(uint32_t)client);
+		MSM_BUS_ERR("msm_bus_scale_client update req error %d\n",
+				(uint32_t)client);
 		return -ENXIO;
 	}
 
@@ -911,37 +911,37 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 	curr = client->curr;
 	pdata = client->pdata;
 	if (!pdata) {
-		//MSM_BUS_ERR("Null pdata passed to update-request\n");
+		MSM_BUS_ERR("Null pdata passed to update-request\n");
 		ret = -ENXIO;
 		goto err;
 	}
 
 	if (index >= pdata->num_usecases) {
-		//MSM_BUS_ERR("Client %u passed invalid index: %d\n",
-		//	(uint32_t)client, index);
+		MSM_BUS_ERR("Client %u passed invalid index: %d\n",
+			(uint32_t)client, index);
 		ret = -ENXIO;
 		goto err;
 	}
 
-	//MSM_BUS_DBG("cl: %u index: %d curr: %d num_paths: %d\n",
-	//	cl, index, client->curr, client->pdata->usecase->num_paths);
+	MSM_BUS_DBG("cl: %u index: %d curr: %d num_paths: %d\n",
+		cl, index, client->curr, client->pdata->usecase->num_paths);
 
 	for (i = 0; i < pdata->usecase->num_paths; i++) {
 		src = msm_bus_board_get_iid(client->pdata->usecase[index].
 			vectors[i].src);
 		if (src == -ENXIO) {
-			//MSM_BUS_ERR("Master %d not supported. Request cannot"
-			//	" be updated\n", client->pdata->usecase->
-			//	vectors[i].src);
+			MSM_BUS_ERR("Master %d not supported. Request cannot"
+				" be updated\n", client->pdata->usecase->
+				vectors[i].src);
 			goto err;
 		}
 
-		//if (msm_bus_board_get_iid(client->pdata->usecase[index].
-		//	vectors[i].dst) == -ENXIO) {
-		//	MSM_BUS_ERR("Slave %d not supported. Request cannot"
-		//		" be updated\n", client->pdata->usecase->
-		//		vectors[i].dst);
-		//}
+		if (msm_bus_board_get_iid(client->pdata->usecase[index].
+			vectors[i].dst) == -ENXIO) {
+			MSM_BUS_ERR("Slave %d not supported. Request cannot"
+				" be updated\n", client->pdata->usecase->
+				vectors[i].dst);
+		}
 
 		pnode = client->src_pnode[i];
 		req_clk = client->pdata->usecase[index].vectors[i].ib;
@@ -952,14 +952,14 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 		} else {
 			curr_clk = client->pdata->usecase[curr].vectors[i].ib;
 			curr_bw = client->pdata->usecase[curr].vectors[i].ab;
-			//MSM_BUS_DBG("ab: %llu ib: %llu\n", curr_bw, curr_clk);
+			MSM_BUS_DBG("ab: %llu ib: %llu\n", curr_bw, curr_clk);
 		}
 
 		if (!pdata->active_only) {
 			ret = update_path(src, pnode, req_clk, req_bw,
 				curr_clk, curr_bw, 0, pdata->active_only);
 			if (ret) {
-				//MSM_BUS_ERR("Update path failed! %d\n", ret);
+				MSM_BUS_ERR("Update path failed! %d\n", ret);
 				goto err;
 			}
 		}
@@ -967,7 +967,7 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 		ret = update_path(src, pnode, req_clk, req_bw, curr_clk,
 				curr_bw, ACTIVE_CTX, pdata->active_only);
 		if (ret) {
-			//MSM_BUS_ERR("Update Path failed! %d\n", ret);
+			MSM_BUS_ERR("Update Path failed! %d\n", ret);
 			goto err;
 		}
 	}
@@ -996,24 +996,24 @@ static int reset_pnodes(int curr, int pnode)
 	int index, next_pnode;
 	fabdev = msm_bus_get_fabric_device(GET_FABID(curr));
 	if (!fabdev) {
-		//MSM_BUS_ERR("Fabric not found for: %d\n",
-		//	(GET_FABID(curr)));
+		MSM_BUS_ERR("Fabric not found for: %d\n",
+			(GET_FABID(curr)));
 			return -ENXIO;
 	}
 
 	index = GET_INDEX(pnode);
 	info = fabdev->algo->find_node(fabdev, curr);
 	if (!info) {
-		//MSM_BUS_ERR("Cannot find node info!\n");
+		MSM_BUS_ERR("Cannot find node info!\n");
 		return -ENXIO;
 	}
 
-	//MSM_BUS_DBG("Starting the loop--remove\n");
+	MSM_BUS_DBG("Starting the loop--remove\n");
 	do {
 		struct msm_bus_inode_info *hop;
 		fabdev = msm_bus_get_fabric_device(GET_FABID(curr));
 		if (!fabdev) {
-			//MSM_BUS_ERR("Fabric not found\n");
+			MSM_BUS_ERR("Fabric not found\n");
 				return -ENXIO;
 		}
 
@@ -1026,22 +1026,22 @@ static int reset_pnodes(int curr, int pnode)
 		else
 			hop = fabdev->algo->find_gw_node(fabdev, curr);
 		if (!hop) {
-			//MSM_BUS_ERR("Null Info found for hop\n");
+			MSM_BUS_ERR("Null Info found for hop\n");
 			return -ENXIO;
 		}
 
-		//MSM_BUS_DBG("%d[%d] = %d\n", info->node_info->priv_id, index,
-		//	info->pnode[index].next);
-		//MSM_BUS_DBG("num_pnodes: %d: %d\n", info->node_info->priv_id,
-		//	info->num_pnodes);
+		MSM_BUS_DBG("%d[%d] = %d\n", info->node_info->priv_id, index,
+			info->pnode[index].next);
+		MSM_BUS_DBG("num_pnodes: %d: %d\n", info->node_info->priv_id,
+			info->num_pnodes);
 		info = hop;
 	} while (GET_NODE(info->pnode[index].next) != info->node_info->priv_id);
 
 	info->pnode[index].next = -2;
-	//MSM_BUS_DBG("%d[%d] = %d\n", info->node_info->priv_id, index,
-	//	info->pnode[index].next);
-	//MSM_BUS_DBG("num_pnodes: %d: %d\n", info->node_info->priv_id,
-	//	info->num_pnodes);
+	MSM_BUS_DBG("%d[%d] = %d\n", info->node_info->priv_id, index,
+		info->pnode[index].next);
+	MSM_BUS_DBG("num_pnodes: %d: %d\n", info->node_info->priv_id,
+		info->num_pnodes);
 	return 0;
 }
 
@@ -1051,7 +1051,7 @@ int msm_bus_board_get_iid(int id)
 
 	deffab = msm_bus_get_fabric_device(MSM_BUS_FAB_DEFAULT);
 	if (!deffab) {
-		//MSM_BUS_ERR("Error finding default fabric\n");
+		MSM_BUS_ERR("Error finding default fabric\n");
 		return -ENXIO;
 	}
 
@@ -1063,7 +1063,7 @@ void msm_bus_scale_client_reset_pnodes(uint32_t cl)
 	int i, src, pnode, index;
 	struct msm_bus_client *client = (struct msm_bus_client *)(cl);
 	if (IS_ERR_OR_NULL(client)) {
-		//MSM_BUS_ERR("msm_bus_scale_reset_pnodes error\n");
+		MSM_BUS_ERR("msm_bus_scale_reset_pnodes error\n");
 		return;
 	}
 	index = 0;
@@ -1071,7 +1071,7 @@ void msm_bus_scale_client_reset_pnodes(uint32_t cl)
 		src = msm_bus_board_get_iid(
 			client->pdata->usecase[index].vectors[i].src);
 		pnode = client->src_pnode[i];
-		//MSM_BUS_DBG("(%d, %d)\n", GET_NODE(pnode), GET_INDEX(pnode));
+		MSM_BUS_DBG("(%d, %d)\n", GET_NODE(pnode), GET_INDEX(pnode));
 		reset_pnodes(src, pnode);
 	}
 }
@@ -1119,7 +1119,7 @@ static void unregister_client_legacy(uint32_t cl)
 	} else if (client->curr != 0)
 		msm_bus_scale_client_update_request(cl, 0);
 
-	//MSM_BUS_DBG("Unregistering client %d\n", cl);
+	MSM_BUS_DBG("Unregistering client %d\n", cl);
 	mutex_lock(&msm_bus_lock);
 	msm_bus_scale_client_reset_pnodes(cl);
 	msm_bus_dbg_client_data(client->pdata, MSM_BUS_DBG_UNREGISTER, cl);

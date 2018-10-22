@@ -136,7 +136,7 @@ enum {
 	MSM_MPM_DEBUG_NON_DETECTABLE_IRQ_IDLE = BIT(3),
 };
 
-static int msm_mpm_debug_mask = 0;
+static int msm_mpm_debug_mask = 1;
 module_param_named(
 	debug_mask, msm_mpm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
 );
@@ -174,9 +174,9 @@ static inline void msm_mpm_write(
 	unsigned int offset = reg * MSM_MPM_REG_WIDTH + subreg_index + 2;
 
 	__raw_writel(value, msm_mpm_dev_data.mpm_request_reg_base + offset * 4);
-	//if (MSM_MPM_DEBUG_WRITE & msm_mpm_debug_mask)
-	//	pr_info("%s: reg %u.%u: 0x%08x\n",
-	//		__func__, reg, subreg_index, value);
+	if (MSM_MPM_DEBUG_WRITE & msm_mpm_debug_mask)
+		pr_info("%s: reg %u.%u: 0x%08x\n",
+			__func__, reg, subreg_index, value);
 }
 
 static inline void msm_mpm_send_interrupt(void)
@@ -531,12 +531,12 @@ static bool msm_mpm_interrupts_detectable(int d, bool from_idle)
 	if (debug_mask && !ret) {
 		int i = 0;
 		i = find_first_bit(irq_bitmap, unlisted->size);
-		//pr_info("%s(): %s preventing system sleep modes during %s\n",
-		//		__func__, unlisted->domain_name,
-		//		from_idle ? "idle" : "suspend");
+		pr_info("%s(): %s preventing system sleep modes during %s\n",
+				__func__, unlisted->domain_name,
+				from_idle ? "idle" : "suspend");
 
 		while (i < unlisted->size) {
-			//pr_info("\thwirq: %d\n", i);
+			pr_info("\thwirq: %d\n", i);
 			i = find_next_bit(irq_bitmap, unlisted->size, i + 1);
 		}
 	}
@@ -561,7 +561,7 @@ void msm_mpm_enter_sleep(uint64_t sclk_count, bool from_idle,
 	cycle_t wakeup = (u64)sclk_count * ARCH_TIMER_HZ;
 
 	if (!msm_mpm_is_initialized()) {
-		//pr_err("%s(): MPM not initialized\n", __func__);
+		pr_err("%s(): MPM not initialized\n", __func__);
 		return;
 	}
 
@@ -587,7 +587,7 @@ void msm_mpm_exit_sleep(bool from_idle)
 	int k;
 
 	if (!msm_mpm_is_initialized()) {
-		//pr_err("%s(): MPM not initialized\n", __func__);
+		pr_err("%s(): MPM not initialized\n", __func__);
 		return;
 	}
 
@@ -598,9 +598,9 @@ void msm_mpm_exit_sleep(bool from_idle)
 		pending = msm_mpm_read(MSM_MPM_REG_STATUS, i);
 		pending &= enabled_intr[i];
 
-		//if (MSM_MPM_DEBUG_PENDING_IRQ & msm_mpm_debug_mask)
-		//	pr_info("%s: enabled_intr.%d pending.%d: 0x%08x 0x%08lx\n",
-		//		__func__, i, i, enabled_intr[i], pending);
+		if (MSM_MPM_DEBUG_PENDING_IRQ & msm_mpm_debug_mask)
+			pr_info("%s: enabled_intr.%d pending.%d: 0x%08x 0x%08lx\n",
+				__func__, i, i, enabled_intr[i], pending);
 
 		k = find_first_bit(&pending, 32);
 		while (k < 32) {
@@ -705,54 +705,54 @@ static int msm_mpm_dev_probe(struct platform_device *pdev)
 	char *key;
 
 	if (msm_mpm_initialized & MSM_MPM_DEVICE_PROBED) {
-		//pr_warn("MPM device probed multiple times\n");
+		pr_warn("MPM device probed multiple times\n");
 		return 0;
 	}
 
 	key = "clock-names";
 	ret = of_property_read_string(pdev->dev.of_node, key, &clk_name);
 	if (ret) {
-		//pr_err("%s(): Cannot read clock name%s\n", __func__, key);
+		pr_err("%s(): Cannot read clock name%s\n", __func__, key);
 		return -EINVAL;
 	}
 
 	xo_clk = clk_get(&pdev->dev, clk_name);
 
 	if (IS_ERR(xo_clk)) {
-		//pr_err("%s(): Cannot get clk resource for XO: %ld\n", __func__,
-		//		PTR_ERR(xo_clk));
+		pr_err("%s(): Cannot get clk resource for XO: %ld\n", __func__,
+				PTR_ERR(xo_clk));
 		return PTR_ERR(xo_clk);
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vmpm");
 	if (!res) {
-		//pr_err("%s(): Missing RPM memory resource\n", __func__);
+		pr_err("%s(): Missing RPM memory resource\n", __func__);
 		return -EINVAL;
 	}
 
 	dev->mpm_request_reg_base = devm_ioremap_resource(&pdev->dev, res);
 
 	if (!dev->mpm_request_reg_base) {
-		//pr_err("%s(): Unable to iomap\n", __func__);
+		pr_err("%s(): Unable to iomap\n", __func__);
 		return -EADDRNOTAVAIL;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ipc");
 	if (!res) {
-		//pr_err("%s(): Missing GCC memory resource\n", __func__);
+		pr_err("%s(): Missing GCC memory resource\n", __func__);
 		return -EINVAL;
 	}
 
 	dev->mpm_apps_ipc_reg = devm_ioremap(&pdev->dev, res->start,
 					resource_size(res));
 	if (!dev->mpm_apps_ipc_reg) {
-		//pr_err("%s(): Unable to iomap IPC register\n", __func__);
+		pr_err("%s(): Unable to iomap IPC register\n", __func__);
 		return -EADDRNOTAVAIL;
 	}
 
 	if (of_property_read_u32(pdev->dev.of_node,
 				"qcom,ipc-bit-offset", &offset)) {
-		//pr_info("%s(): Cannot read ipc bit offset\n", __func__);
+		pr_info("%s(): Cannot read ipc bit offset\n", __func__);
 		return -EINVAL;
 	}
 
@@ -761,7 +761,7 @@ static int msm_mpm_dev_probe(struct platform_device *pdev)
 	dev->mpm_ipc_irq = platform_get_irq(pdev, 0);
 
 	if (dev->mpm_ipc_irq == -ENXIO) {
-		//pr_info("%s(): Cannot find IRQ resource\n", __func__);
+		pr_info("%s(): Cannot find IRQ resource\n", __func__);
 		return -ENXIO;
 	}
 	ret = devm_request_irq(&pdev->dev, dev->mpm_ipc_irq, msm_mpm_irq,
@@ -775,8 +775,8 @@ static int msm_mpm_dev_probe(struct platform_device *pdev)
 	ret = irq_set_irq_wake(dev->mpm_ipc_irq, 1);
 
 	if (ret) {
-		//pr_err("%s: failed to set wakeup irq %u: %d\n",
-		//	__func__, dev->mpm_ipc_irq, ret);
+		pr_err("%s: failed to set wakeup irq %u: %d\n",
+			__func__, dev->mpm_ipc_irq, ret);
 		return ret;
 
 	}
@@ -789,8 +789,8 @@ static int msm_mpm_dev_probe(struct platform_device *pdev)
 	if (msm_mpm_wq)
 		queue_work(msm_mpm_wq, &msm_mpm_work);
 	else  {
-		//pr_warn("%s(): Failed to create wq. So voting against XO off",
-		//		__func__);
+		pr_warn("%s(): Failed to create wq. So voting against XO off",
+				__func__);
 		/* Throw a BUG. Otherwise, its possible that system allows
 		 * XO shutdown when there are non-monitored interrupts are
 		 * pending and cause errors at a later point in time.
@@ -872,16 +872,16 @@ static int mpm_init_irq_domain(struct device_node *node, int irq_domain)
 	parent = of_parse_phandle(node, mpm_of_map[i].pkey, 0);
 
 	if (!parent) {
-		//pr_warn("%s(): %s Not found\n", __func__,
-		//		mpm_of_map[i].pkey);
+		pr_warn("%s(): %s Not found\n", __func__,
+				mpm_of_map[i].pkey);
 		return -ENODEV;
 	}
 
 	domain = irq_find_host(parent);
 
 	if (!domain) {
-		//pr_warn("%s(): Cannot find irq controller for %s\n",
-		//		__func__, mpm_of_map[i].pkey);
+		pr_warn("%s(): Cannot find irq controller for %s\n",
+				__func__, mpm_of_map[i].pkey);
 		return -EPROBE_DEFER;
 	}
 
@@ -967,7 +967,7 @@ static void __of_mpm_init(struct device_node *node)
 
 	if (msm_mpm_initialized & (MSM_MPM_GIC_IRQ_MAPPING_DONE |
 				MSM_MPM_GPIO_IRQ_MAPPING_DONE)) {
-		//pr_warn("%s(): MPM driver mapping exists\n", __func__);
+		pr_warn("%s(): MPM driver mapping exists\n", __func__);
 		return;
 	}
 
@@ -1054,9 +1054,9 @@ void of_mpm_init(void)
 		__of_mpm_init(node);
 		for (i = 0; i < MSM_MPM_NR_IRQ_DOMAINS; i++) {
 			ret = mpm_init_irq_domain(node, i);
-			//if (ret)
-			//	pr_err("MPM %d irq mapping errored %d\n", i,
-			//			ret);
+			if (ret)
+				pr_err("MPM %d irq mapping errored %d\n", i,
+						ret);
 		}
 	}
 }
