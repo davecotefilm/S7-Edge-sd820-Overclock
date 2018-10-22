@@ -1623,7 +1623,7 @@ static int max77854_fg_set_property(struct power_supply *psy,
 				break;
 		}
 	case POWER_SUPPLY_PROP_TEMP:
-		if(val->intval < -19) {
+		if(val->intval < 0) {
 			u16 reg_data;
 			reg_data = max77854_read_word(fuelgauge->i2c, DESIGNCAP_REG);
 			if(reg_data == fuelgauge->battery_data->Capacity) {
