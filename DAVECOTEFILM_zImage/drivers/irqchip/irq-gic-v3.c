@@ -97,7 +97,7 @@ static void gic_do_wait_for_rwp(void __iomem *base)
 	while (readl_relaxed(base + GICD_CTLR) & GICD_CTLR_RWP) {
 		count--;
 		if (!count) {
-			pr_err_ratelimited("RWP timeout, gone fishing\n");
+			//pr_err_ratelimited("RWP timeout, gone fishing\n");
 			return;
 		}
 		cpu_relax();
@@ -176,8 +176,8 @@ static void gic_enable_sre(void)
 	 * Kindly inform the luser.
 	 */
 	asm volatile("mrs_s %0, " __stringify(ICC_SRE_EL1) : "=r" (val));
-	if (!(val & ICC_SRE_EL1_SRE))
-		pr_err("GIC: unable to set SRE (disabled at EL2), panic ahead\n");
+	//if (!(val & ICC_SRE_EL1_SRE))
+	//	pr_err("GIC: unable to set SRE (disabled at EL2), panic ahead\n");
 }
 
 #ifdef CONFIG_ARM_GIC_V3_NO_ACCESS_CONTROL
@@ -210,9 +210,9 @@ static void gic_enable_redist(bool enable)
 		cpu_relax();
 		udelay(1);
 	};
-	if (!count)
-		pr_err_ratelimited("redistributor failed to %s...\n",
-				   enable ? "wakeup" : "sleep");
+	//if (!count)
+	//	pr_err_ratelimited("redistributor failed to %s...\n",
+	//			   enable ? "wakeup" : "sleep");
 }
 #else
 static void gic_enable_redist(bool enable) { }
@@ -406,12 +406,12 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 		else if (desc->action && desc->action->name)
 			name = desc->action->name;
 
-		pr_warn("Resume caused by HWIRQ %d(irq %d), %s\n",
-								i, irq, name);
+		//pr_warn("Resume caused by HWIRQ %d(irq %d), %s\n",
+		//						i, irq, name);
 #ifdef CONFIG_SEC_PM
-		last_resume_kernel_reason_len += 
-			sprintf(last_resume_kernel_reason + last_resume_kernel_reason_len,
-			"HWIRQ %d(irq %d), %s|", i, irq, name);
+		//last_resume_kernel_reason_len += 
+		//	sprintf(last_resume_kernel_reason + last_resume_kernel_reason_len,
+		//	"HWIRQ %d(irq %d), %s|", i, irq, name);
 #endif
 	}
 }
@@ -541,7 +541,7 @@ static int gic_populate_rdist(void)
 		reg = readl_relaxed(ptr + GICR_PIDR2) & GIC_PIDR2_ARCH_MASK;
 		if (reg != GIC_PIDR2_ARCH_GICv3 &&
 		    reg != GIC_PIDR2_ARCH_GICv4) { /* We're in trouble... */
-			pr_warn("No redistributor present @%p\n", ptr);
+			//pr_warn("No redistributor present @%p\n", ptr);
 			break;
 		}
 
@@ -551,10 +551,10 @@ static int gic_populate_rdist(void)
 				u64 offset = ptr - gic_data.redist_regions[i].redist_base;
 				gic_data_rdist_rd_base() = ptr;
 				gic_data_rdist()->phys_base = gic_data.redist_regions[i].phys_base + offset;
-				pr_info("CPU%d: found redistributor %llx region %d:%pa\n",
-					smp_processor_id(),
-					(unsigned long long)mpidr,
-					i, &gic_data_rdist()->phys_base);
+				//pr_info("CPU%d: found redistributor %llx region %d:%pa\n",
+				//	smp_processor_id(),
+				//	(unsigned long long)mpidr,
+				//	i, &gic_data_rdist()->phys_base);
 				return 0;
 			}
 
@@ -691,7 +691,7 @@ static void gic_send_sgi(u64 cluster_id, u16 tlist, unsigned int irq)
 	       MPIDR_AFFINITY_LEVEL(cluster_id, 1) << 16	|
 	       tlist);
 
-	pr_debug("CPU%d: ICC_SGI1R_EL1 %llx\n", smp_processor_id(), val);
+	//pr_debug("CPU%d: ICC_SGI1R_EL1 %llx\n", smp_processor_id(), val);
 	gic_write_sgi1r(val);
 }
 
@@ -784,8 +784,8 @@ int gic_set_wake(struct irq_data *d, unsigned int on)
 
 	if (gic_arch_extn.irq_set_wake)
 		ret = gic_arch_extn.irq_set_wake(d, on);
-	else
-		pr_err("mpm: set wake is null\n");
+	//else
+	//	pr_err("mpm: set wake is null\n");
 
 	return ret;
 }
@@ -955,15 +955,15 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 
 	dist_base = of_iomap(node, 0);
 	if (!dist_base) {
-		pr_err("%s: unable to map gic dist registers\n",
-			node->full_name);
+		//pr_err("%s: unable to map gic dist registers\n",
+		//	node->full_name);
 		return -ENXIO;
 	}
 
 	reg = readl_relaxed(dist_base + GICD_PIDR2) & GIC_PIDR2_ARCH_MASK;
 	if (reg != GIC_PIDR2_ARCH_GICv3 && reg != GIC_PIDR2_ARCH_GICv4) {
-		pr_err("%s: no distributor detected, giving up\n",
-			node->full_name);
+		//pr_err("%s: no distributor detected, giving up\n",
+		//	node->full_name);
 		err = -ENODEV;
 		goto out_unmap_dist;
 	}
@@ -984,8 +984,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 		ret = of_address_to_resource(node, 1 + i, &res);
 		rdist_regs[i].redist_base = of_iomap(node, 1 + i);
 		if (ret || !rdist_regs[i].redist_base) {
-			pr_err("%s: couldn't map region %d\n",
-			       node->full_name, i);
+			//pr_err("%s: couldn't map region %d\n",
+			//       node->full_name, i);
 			err = -ENODEV;
 			goto out_unmap_rdist;
 		}
